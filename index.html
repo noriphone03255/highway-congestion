@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>高速道路 渋滞予測マップ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{display:flex;height:100vh;font-family:-apple-system,'Hiragino Sans',sans-serif;background:#0f172a;color:#f1f5f9}
+#sidebar{width:300px;min-width:300px;background:#1e293b;display:flex;flex-direction:column;gap:20px;padding:20px;overflow-y:auto;z-index:1000;box-shadow:4px 0 20px rgba(0,0,0,.4)}
+#sidebar h1{font-size:18px;font-weight:700;color:#38bdf8}
+#sidebar h1 span{display:block;font-size:11px;color:#94a3b8}
+.section{background:#0f172a;border-radius:10px;padding:14px}
+.section-title{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;margin-bottom:10px}
+#date-picker{width:100%;padding:8px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:14px}
+#time-display{font-size:28px;font-weight:700;color:#f1f5f9;text-align:center;margin-bottom:10px}
+#time-slider{-webkit-appearance:none;width:100%;height:6px;background:#334155;border-radius:3px;cursor:pointer}
+#time-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#38bdf8}
+.time-labels{display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-top:4px}
+.rush-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:8px}
+.rush-seg{flex:1}
+#score-number{font-size:48px;font-weight:800;text-align:center;transition:color .3s}
+#score-label{font-size:13px;color:#94a3b8;text-align:center;margin-top:4px}
+#score-bar-wrap{height:10px;background:#1e293b;border-radius:5px;overflow:hidden;margin-top:10px}
+#score-bar{height:100%;border-radius:5px;transition:width .4s,background .4s}
+.factor-list{display:flex;flex-direction:column;gap:6px}
+.factor{display:flex;justify-content:space-between;font-size:12px;padding:6px 8px;border-radius:6px;background:#1e293b}
+.factor.active{background:#1d3353}
+.factor-name{color:#cbd5e1}
+.factor-val{font-weight:600;font-size:11px}
+.factor-val.pos{color:#f97316}.factor-val.neg{color:#34d399}.factor-val.neu{color:#64748b}
+.legend-items{display:flex;flex-direction:column;gap:5px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:12px}
+.legend-color{width:28px;height:8px;border-radius:4px}
+#map{flex:1;z-index:1}
+.road-tooltip{background:rgba(15,23,42,.9);border:1px solid #334155;color:#f1f5f9;padding:8px 12px;border-radius:8px;font-size:12px;pointer-events:none}
+#mobile-toggle{display:none;position:fixed;top:12px;left:12px;z-index:2000;background:#1e293b;border:1px solid #334155;color:#f1f5f9;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+@media(max-width:640px){body{flex-direction:column}#sidebar{width:100%;position:fixed;top:0;left:-100%;transition:left .3s}#sidebar.open{left:0}#mobile-toggle{display:block}}
+</style>
+</head>
+<body>
+<button id="mobile-toggle" onclick="toggleSidebar()">☰ メニュー</button>
+<div id="sidebar">
+<h1>渋滞予測マップ <span>高速道路 混雑傾向ビジュアライザー</span></h1>
+<div class="section"><div class="section-title">日付を選択</div><input type="date" id="date-picker"/></div>
+<div class="section"><div class="section-title">時刻</div><div id="time-display">08:00</div><input type="range" id="time-slider" min="0" max="23" value="8"/><div class="time-labels"><span>深夜</span><span>朝</span><span>昼</span><span>夕</span><span>夜</span></div><div class="rush-bar" id="rush-bar"></div></div>
+<div class="section"><div class="section-title">混雑スコア</div><div id="score-number">0.0</div><div id="score-label">空いています</div><div id="score-bar-wrap"><div id="score-bar" style="width:0%"></div></div></div>
+<div class="section"><div class="section-title">混雑要因</div><div class="factor-list" id="factor-list"></div></div>
+<div class="section"><div class="section-title">凡例</div><div class="legend-items"><div class="legend-item"><div class="legend-color" style="background:#22d3ee"></div>空いている</div><div class="legend-item"><div class="legend-color" style="background:#86efac"></div>やや空き</div><div class="legend-item"><div class="legend-color" style="background:#fbbf24"></div>普通</div><div class="legend-item"><div class="legend-color" style="background:#f97316"></div>やや混雑</div><div class="legend-item"><div class="legend-color" style="background:#ef4444"></div>渋滞</div></div></div>
+<div style="font-size:10px;color:#475569;line-height:1.6">※ 曜日・五十日・祝日・時間帯に基づく統計的予測です。</div>
+</div>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const H26=new Set(['2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20','2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06','2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23','2026-10-12','2026-11-03','2026-11-23','2026-12-23']);
+function dk(d){return d.toISOString().slice(0,10)}function ih(d){return H26.has(dk(d))}function ad(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
+function sc(date,h){let s=0;const dow=date.getDay(),dom=date.getDate(),mo=date.getMonth()+1,yr=date.getFullYear(),ld=new Date(yr,mo,0).getDate();if([5,10,15,20,25].includes(dom)||dom===ld)s+=1.5;if(dow===5)s+=1.2;if(dow===1)s+=0.6;if(dow===0||dow===6)s+=0.4;if(ih(date))s+=0.8;if(ih(ad(date,1)))s+=1.5;if((mo===4&&dom>=29)||(mo===5&&dom<=6))s+=2.5;if(mo===8&&dom>=10&&dom<=18)s+=2;if((mo===12&&dom>=28)||(mo===1&&dom<=3))s+=2;if(h>=0&&h<=4)s-=2.5;else if(h===5||h===6)s-=0.5;else if(h>=7&&h<=9)s+=2.2;else if(h>=10&&h<=12)s+=0.3;else if(h>=13&&h<=16)s+=0.5;else if(h>=17&&h<=20)s+=2.5;else if(h>=21)s-=0.5;if(dow===1&&h>=7&&h<=10)s+=0.8;if(dow===5&&h>=17&&h<=20)s+=0.8;return Math.max(0,Math.min(5,s))}
+function col(s){return s<1?'#22d3ee':s<2?'#86efac':s<3?'#fbbf24':s<4?'#f97316':'#ef4444'}
+function lbl(s){return s<1?'空いています':s<2?'やや空いています':s<3?'普通':s<4?'やや混雑':'渋滞が予想されます'}
+const HW=[{id:'tomei',name:'東名高速(E1)',c:[[35.647,139.695],[35.455,139.572],[35.333,139.110],[35.147,138.893],[35.155,138.686],[34.976,138.409],[34.783,137.934],[34.745,137.706],[34.783,137.487],[35.072,137.052],[35.162,136.944]]},{id:'shinotomei',name:'新東名(E1A)',c:[[35.404,139.385],[35.300,139.000],[35.100,138.630],[34.970,138.280],[34.975,137.680],[35.072,137.052]]},{id:'chuo',name:'中央道(E20)',c:[[35.673,139.604],[35.641,139.374],[35.619,138.946],[35.685,138.736],[35.713,138.443],[36.048,138.133],[36.066,138.027],[35.668,137.750],[35.465,137.390],[35.251,136.915]]},{id:'tohoku',name:'東北道(E4)',c:[[35.823,139.720],[35.967,139.723],[36.173,139.545],[36.576,139.869],[36.941,140.020],[37.152,140.223],[37.753,140.514],[38.211,140.873],[38.583,140.932],[38.944,141.101],[39.268,141.102],[39.680,141.148],[40.822,140.790]]},{id:'kanetsu',name:'関越道(E17)',c:[[35.756,139.608],[35.916,139.313],[36.200,139.110],[36.317,139.017],[36.497,138.895],[36.738,138.827],[36.912,138.817],[37.391,138.849],[37.888,139.059]]},{id:'meishin',name:'名神(E1)',c:[[35.251,136.915],[35.322,136.664],[35.320,136.294],[35.278,136.228],[35.009,135.993],[35.013,135.795],[34.840,135.630],[34.775,135.534],[34.725,135.214]]},{id:'sanyo',name:'山陽道(E2)',c:[[34.725,135.214],[34.839,134.769],[34.663,133.922],[34.495,133.290],[34.421,133.178],[34.385,132.516],[34.091,132.052],[34.050,131.630],[34.004,130.954]]},{id:'hokuriku',name:'北陸道(E8)',c:[[35.320,136.294],[35.468,136.144],[35.631,136.061],[35.919,136.178],[36.091,136.243],[36.568,136.669],[36.766,137.027],[36.696,137.249],[37.035,137.854],[37.148,138.173],[37.391,138.849]]},{id:'joban',name:'常磐道(E6)',c:[[35.823,139.720],[35.950,139.960],[36.250,140.150],[36.660,140.420],[36.869,140.568],[37.358,140.800],[37.960,140.940],[38.270,141.004]]}];
+const map=L.map('map').setView([36.5,137.5],6);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+const pm={};HW.forEach(hw=>{const pl=L.polyline(hw.c,{color:'#22d3ee',weight:4,opacity:.85}).addTo(map);pl.bindTooltip('<div class="road-tooltip"><b>'+hw.name+'</b></div>',{sticky:true});pm[hw.id]=pl});
+const dp=document.getElementById('date-picker'),ts=document.getElementById('time-slider'),td=document.getElementById('time-display'),sn=document.getElementById('score-number'),sl=document.getElementById('score-label'),sb=document.getElementById('score-bar'),fl=document.getElementById('factor-list'),rb=document.getElementById('rush-bar');
+const tmr=new Date();tmr.setDate(tmr.getDate()+1);dp.value=dk(tmr);
+function pad(n){return String(n).padStart(2,'0')}
+function gd(){const[y,m,d]=dp.value.split('-').map(Number);return new Date(y,m-1,d)}
+function buildRB(){rb.innerHTML='';const dt=gd();for(let h=0;h<24;h++){const sg=document.createElement('div');sg.className='rush-seg';sg.style.background=col(sc(dt,h));rb.appendChild(sg)}}
+function upd(){const dt=gd(),h=+ts.value;td.textContent=pad(h)+':00';const s=sc(dt,h),c=col(s);HW.forEach(hw=>pm[hw.id].setStyle({color:c,weight:4}));sn.textContent=s.toFixed(1);sn.style.color=c;sl.textContent=lbl(s);sb.style.width=(s/5*100)+'%';sb.style.background=c;const dow=dt.getDay(),dom=dt.getDate(),mo=dt.getMonth()+1,ld=new Date(dt.getFullYear(),mo,0).getDate(),dn=['日','月','火','水','木','金','土'],fs=[];const f5=[5,10,15,20,25].includes(dom)||dom===ld;fs.push({n:'五十日('+dom+'日)',v:f5?1.5:0,a:f5});fs.push({n:dn[dow]+'曜日',v:[1.2,.6,0,0,0,1.2,.4][dow],a:dow===5||dow===1||dow===0||dow===6});const hol=ih(dt);fs.push({n:'祝日',v:hol?.8:0,a:hol});const pre=ih(ad(dt,1));fs.push({n:'祝前日',v:pre?1.5:0,a:pre});const gw=(mo===4&&dom>=29)||(mo===5&&dom<=6);fs.push({n:'GW',v:gw?2.5:0,a:gw});const ob=mo===8&&dom>=10&&dom<=18;fs.push({n:'お盆',v:ob?2:0,a:ob});const ny=(mo===12&&dom>=28)||(mo===1&&dom<=3);fs.push({n:'年末年始',v:ny?2:0,a:ny});let tv=0,tn='';if(h<=4){tv=-2.5;tn='深夜帯'}else if(h>=7&&h<=9){tv=2.2;tn='朝ラッシュ'}else if(h>=17&&h<=20){tv=2.5;tn='夕ラッシュ'}else if(h>=13&&h<=16){tv=.5;tn='昼間'}else if(h>=21){tv=-.5;tn='夜間'}else{tv=.3;tn='通常時間帯'}fs.push({n:tn,v:tv,a:tv!==0});fl.innerHTML='';fs.forEach(f=>{if(!f.a&&f.v===0)return;const div=document.createElement('div');div.className='factor'+(f.a?' active':'');div.innerHTML='<span class="factor-name">'+f.n+'</span><span class="factor-val '+(f.v>0?'pos':f.v<0?'neg':'neu')+'">'+(f.a?(f.v>0?'+':'')+f.v.toFixed(1):'±0')+'</span>';fl.appendChild(div)});buildRB()}
+dp.addEventListener('change',upd);ts.addEventListener('input',upd);upd();
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open')}
+</script>
+</body>
+</html>

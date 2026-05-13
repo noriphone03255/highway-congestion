@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>高速道路 渋滞予測</title>
+<title>é«ééè·¯ æ¸æ»äºæ¸¬</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:#0f172a;color:#f1f5f9;min-height:100vh;padding:16px}
@@ -11,25 +11,50 @@ h1{font-size:20px;font-weight:700;color:#38bdf8;margin-bottom:4px}
 .subtitle{font-size:11px;color:#64748b;margin-bottom:20px}
 .card{background:#1e293b;border-radius:16px;padding:16px;margin-bottom:14px}
 .card-title{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
-select{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#f1f5f9;font-size:14px;-webkit-appearance:none;appearance:none;margin-bottom:10px}
-input[type=date]{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#f1f5f9;font-size:14px;margin-bottom:10px}
+input[type=date],input[type=text]{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#f1f5f9;font-size:14px;outline:none}
+input:focus{border-color:#38bdf8}
+select{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#f1f5f9;font-size:14px;-webkit-appearance:none;appearance:none;outline:none}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.btn{width:100%;padding:12px;background:#0ea5e9;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.btn{width:100%;padding:12px;background:#0ea5e9;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px}
 .btn:active{background:#0284c7}
+.btn-sm{padding:6px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#94a3b8;font-size:12px;cursor:pointer;white-space:nowrap}
+.btn-sm:active{background:#1e293b}
+.btn-danger{border-color:#450a0a;color:#f87171}
+
+/* ãªã¼ãã³ã³ããªã¼ã */
+.ac-wrap{position:relative;margin-bottom:10px}
+.ac-candidates{position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1px solid #334155;border-radius:10px;z-index:50;max-height:200px;overflow-y:auto;display:none;margin-top:2px}
+.ac-item{padding:10px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid #0f172a}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.selected{background:#334155}
+.ac-road{font-size:10px;color:#64748b;margin-left:6px}
+
+/* ä¿å­ã«ã¼ã */
+.route-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.route-chip{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:20px;padding:5px 10px;font-size:12px;cursor:pointer}
+.route-chip:hover{border-color:#38bdf8}
+.route-chip .del{color:#475569;font-size:14px;line-height:1}
+.route-chip .del:hover{color:#f87171}
+
+/* ãã¼ãããã */
 .heatmap-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.hm-row{display:flex;gap:2px;align-items:center}
+.hm-row{display:flex;gap:2px;align-items:center;margin-bottom:2px}
 .hm-label{font-size:10px;color:#94a3b8;width:68px;flex-shrink:0;text-align:right;padding-right:6px;line-height:1.2}
-.hm-cell{width:22px;height:28px;border-radius:3px;flex-shrink:0;cursor:pointer;transition:transform .1s;position:relative}
+.hm-cell{width:22px;height:28px;border-radius:3px;flex-shrink:0;cursor:pointer;position:relative}
 .hm-cell.on-route{outline:2px solid #fff;outline-offset:1px;z-index:1}
 .hm-header{display:flex;gap:2px;margin-bottom:2px;padding-left:74px}
 .hm-header-cell{width:22px;font-size:9px;color:#475569;text-align:center;flex-shrink:0}
 .c0{background:#1e3a5f}.c1{background:#166534}.c2{background:#365314}.c3{background:#713f12}.c4{background:#7c2d12}.c5{background:#450a0a}
-.best-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #0f172a}
+
+/* ãããã */
+.best-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #0f172a}
 .best-row:last-child{border-bottom:none}
-.best-time{font-size:16px;font-weight:700;color:#38bdf8;width:42px;flex-shrink:0}
-.best-bar-wrap{flex:1;background:#0f172a;border-radius:4px;height:14px;overflow:hidden}
+.best-time{font-size:15px;font-weight:700;color:#38bdf8;width:42px;flex-shrink:0}
+.best-bar-wrap{flex:1;background:#0f172a;border-radius:4px;height:12px;overflow:hidden}
 .best-bar{height:100%;border-radius:4px}
 .best-score{font-size:11px;color:#94a3b8;width:32px;text-align:right;flex-shrink:0}
+
+/* ç§»åè»è·¡ */
 .journey-row{display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:4px;gap:0}
 .j-item{flex:0 0 auto;text-align:center;min-width:74px}
 .j-name{font-size:10px;color:#94a3b8;margin-bottom:3px}
@@ -37,7 +62,13 @@ input[type=date]{width:100%;padding:10px 12px;background:#0f172a;border:1px soli
 .j-badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600}
 .j-arrow{display:flex;align-items:center;justify-content:center;color:#334155;font-size:16px;padding-top:18px;min-width:16px;flex-shrink:0}
 .lbl-green{background:#14532d;color:#4ade80}.lbl-lime{background:#1a2e05;color:#a3e635}.lbl-yellow{background:#422006;color:#fbbf24}.lbl-orange{background:#431407;color:#fb923c}.lbl-red{background:#450a0a;color:#f87171}
-.tip{position:fixed;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:12px;pointer-events:none;z-index:100;display:none;color:#f1f5f9;max-width:180px;line-height:1.5;white-space:pre-line}
+
+/* äºæ¸¬ãã­ã¹ã */
+.pred-text{background:#0f172a;border-radius:10px;padding:14px;font-size:12px;line-height:1.9;color:#cbd5e1;white-space:pre-wrap;word-break:break-all}
+.copy-btn{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:7px 14px;color:#94a3b8;font-size:12px;cursor:pointer;margin-top:10px;width:fit-content}
+.copy-btn:active{background:#1e293b}
+
+.tip{position:fixed;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:12px;pointer-events:none;z-index:100;display:none;color:#f1f5f9;max-width:200px;line-height:1.5;white-space:pre-line}
 .disclaimer{font-size:10px;color:#475569;text-align:center;margin-top:10px;line-height:1.6}
 .legend{display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap}
 .legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#94a3b8}
@@ -45,62 +76,138 @@ input[type=date]{width:100%;padding:10px 12px;background:#0f172a;border:1px soli
 </style>
 </head>
 <body>
-<h1>高速道路 渋滞予測</h1>
-<p class="subtitle">過去の傾向にもとづく予測。実際の渋滞を保証するものではありません。</p>
+<h1>é«ééè·¯ æ¸æ»äºæ¸¬</h1>
+<p class="subtitle">éå»ã®å¾åã«ãã¨ã¥ãäºæ¸¬ãå®éã®æ¸æ»ãä¿è¨¼ãããã®ã§ã¯ããã¾ããã</p>
+
 <div class="card">
-  <div class="card-title">ルートを選択</div>
-  <select id="selHighway" onchange="onHighwayChange()">
-    <option value="">路線を選択</option>
-    <option value="josban">常磐道（E6）</option>
-    <option value="tomei">東名高速（E1）</option>
-    <option value="shintomei">新東名（E1A）</option>
-    <option value="chuo">中央道（E20）</option>
-    <option value="kanetsu">関越道（E17）</option>
-  </select>
-  <div class="row2" style="gap:10px">
-    <select id="selEntry" onchange="updateExitOptions()"><option value="">乗るIC</option></select>
-    <select id="selExit"><option value="">降りるIC</option></select>
+  <div class="card-title">ã«ã¼ãè¨­å®</div>
+
+  <!-- ä¿å­æ¸ã¿ã«ã¼ã -->
+  <div id="savedRoutesWrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:11px;color:#64748b;margin-bottom:6px">ä¿å­æ¸ã¿ã«ã¼ã</div>
+    <div class="route-chips" id="savedChips"></div>
   </div>
-  <input type="date" id="selDate"/>
-  <button class="btn" onclick="showAll()">全時間帯を見る</button>
-</div>
-<div id="resultArea" style="display:none">
-  <div class="card">
-    <div class="card-title">24時間 混雑ヒートマップ</div>
-    <p style="font-size:11px;color:#64748b;margin-bottom:10px">縦：IC ／ 横：時間帯（0〜23時） ／ 色：混雑度。セルをタップで詳細表示。</p>
-    <div style="margin-bottom:10px">
-      <select id="selDeparture" onchange="highlightRoute()" style="margin-bottom:0">
-        <option value="">出発時刻を選んで移動軌跡を表示</option>
+
+  <!-- ä¹ãIC -->
+  <div style="font-size:11px;color:#64748b;margin-bottom:5px">ä¹ãIC</div>
+  <div class="ac-wrap" id="entryWrap">
+    <input type="text" id="entryInput" placeholder="ICåãå¥åï¼ä¾ï¼åæµ¦ï¼" oninput="onACInput('entry')" onfocus="onACInput('entry')" autocomplete="off"/>
+    <div class="ac-candidates" id="entryCandidates"></div>
+  </div>
+
+  <!-- éããIC -->
+  <div style="font-size:11px;color:#64748b;margin-bottom:5px">éããIC</div>
+  <div class="ac-wrap" id="exitWrap">
+    <input type="text" id="exitInput" placeholder="ICåãå¥åï¼ä¾ï¼ä¸é·ï¼" oninput="onACInput('exit')" onfocus="onACInput('exit')" autocomplete="off"/>
+    <div class="ac-candidates" id="exitCandidates"></div>
+  </div>
+
+  <div class="row2" style="gap:10px;margin-bottom:10px">
+    <div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:5px">æ¥ä»</div>
+      <input type="date" id="selDate"/>
+    </div>
+    <div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:5px">åºçºæå»ï¼è»è·¡è¡¨ç¤ºç¨ï¼</div>
+      <select id="selHour">
+        <option value="">é¸æï¼ä»»æï¼</option>
+        <option value="0">0æå°</option><option value="1">1æå°</option><option value="2">2æå°</option>
+        <option value="3">3æå°</option><option value="4">4æå°</option><option value="5">5æå°</option>
+        <option value="6">6æå°</option><option value="7">7æå°</option><option value="8">8æå°</option>
+        <option value="9">9æå°</option><option value="10">10æå°</option><option value="11">11æå°</option>
+        <option value="12">12æå°</option><option value="13">13æå°</option><option value="14">14æå°</option>
+        <option value="15">15æå°</option><option value="16">16æå°</option><option value="17">17æå°</option>
+        <option value="18">18æå°</option><option value="19">19æå°</option><option value="20">20æå°</option>
+        <option value="21">21æå°</option><option value="22">22æå°</option><option value="23">23æå°</option>
       </select>
     </div>
-    <div class="heatmap-wrap">
-      <div class="hm-header" id="hmHeader"></div>
-      <div id="heatmap" style="display:flex;flex-direction:column;gap:2px"></div>
-    </div>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f"></div>深夜</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#166534"></div>空き</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#365314"></div>やや空き</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#713f12"></div>やや混</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#7c2d12"></div>混雑</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#450a0a"></div>渋滞</div>
-    </div>
   </div>
-  <div class="card" id="journeyCard" style="display:none">
-    <div class="card-title">移動ルート予測</div>
-    <div class="journey-row" id="journeyRow"></div>
-    <p class="disclaimer">※ IC間距離÷100km/hで算出した通過時間帯です。</p>
-  </div>
-  <div class="card">
-    <div class="card-title">おすすめ出発時刻 TOP5</div>
-    <p style="font-size:11px;color:#64748b;margin-bottom:10px">ルート全体の混雑スコア合計が低い順。バーが短いほど空いている可能性が高い。</p>
-    <div id="bestList"></div>
-    <p class="disclaimer">※ 過去の傾向にもとづく統計的予測です。</p>
+
+  <div style="display:flex;gap:8px">
+    <button class="btn" onclick="showAll()" style="flex:1">äºæ¸¬ãè¦ã</button>
+    <button class="btn-sm" onclick="saveRoute()" style="padding:12px 14px;background:#0ea5e933;border-color:#0ea5e9;color:#38bdf8">âä¿å­</button>
   </div>
 </div>
+
+<div id="resultArea" style="display:none">
+  <!-- ãã¼ãããã -->
+  <div class="card">
+    <div class="card-title">24æé æ··éãã¼ãããã</div>
+    <p style="font-size:11px;color:#64748b;margin-bottom:10px">ç¸¦ï¼IC ï¼ æ¨ªï¼0ã23æ ï¼ è²ï¼æ··éåº¦ ï¼ ã»ã«ãã¿ããã§è©³ç´°</p>
+    <div class="heatmap-wrap">
+      <div class="hm-header" id="hmHeader"></div>
+      <div id="heatmap"></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f"></div>æ·±å¤</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#166534"></div>ç©ºã</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#365314"></div>ããç©ºã</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#713f12"></div>ããæ··</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#7c2d12"></div>æ··é</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#450a0a"></div>æ¸æ»</div>
+    </div>
+  </div>
+
+  <!-- ç§»åè»è·¡ -->
+  <div class="card" id="journeyCard" style="display:none">
+    <div class="card-title">ç§»åã«ã¼ãäºæ¸¬</div>
+    <div class="journey-row" id="journeyRow"></div>
+    <p class="disclaimer">â» ICéè·é¢Ã·100km/hã§ç®åºããééæéå¸¯ã®ç®å®ã§ãã</p>
+  </div>
+
+  <!-- ããããåºçºæå» -->
+  <div class="card">
+    <div class="card-title">ããããåºçºæå» TOP5</div>
+    <p style="font-size:11px;color:#64748b;margin-bottom:10px">ã«ã¼ãå¨ä½ã®æ··éã¹ã³ã¢åè¨ãä½ãé ããã¼ãç­ãã»ã©ç©ºãã¦ããå¯è½æ§ãé«ãã</p>
+    <div id="bestList"></div>
+    <p class="disclaimer">â» éå»ã®å¾åã«ãã¨ã¥ãçµ±è¨çäºæ¸¬ã§ãã</p>
+  </div>
+
+  <!-- äºæ¸¬ãã­ã¹ãèªåçæ -->
+  <div class="card">
+    <div class="card-title">äºæ¸¬ãã­ã¹ãï¼AIã«è¦ã¤ãã¦ãããç¨ï¼</div>
+    <p style="font-size:11px;color:#64748b;margin-bottom:10px">ãã®ãã­ã¹ããWebãã¼ã¸ãnoteã«è²¼ãã¨æ¤ç´¢ã»AIã«è¦ã¤ãããããããªãã¾ãã</p>
+    <div class="pred-text" id="predText"></div>
+    <button class="copy-btn" onclick="copyText()">ð ãã­ã¹ããã³ãã¼</button>
+  </div>
+</div>
+
 <div class="tip" id="tip"></div>
+
 <script>
-const HIGHWAYS={josban:{name:'常磐道（E6）',ics:[{name:'水戸IC',dist:0},{name:'土浦北IC',dist:30},{name:'土浦IC',dist:5},{name:'柏IC',dist:40},{name:'流山IC',dist:10},{name:'三郷JCT',dist:10}],multipliers:[1.0,1.0,1.1,1.2,1.3]},tomei:{name:'東名高速（E1）',ics:[{name:'御殿場IC',dist:0},{name:'厚木IC',dist:40},{name:'横浜IC',dist:20},{name:'東京IC',dist:20},{name:'用賀IC',dist:10}],multipliers:[1.0,1.2,1.4,1.3]},shintomei:{name:'新東名（E1A）',ics:[{name:'浜松いなさJCT',dist:0},{name:'岡崎東IC',dist:50},{name:'豊田東JCT',dist:15},{name:'新清水JCT',dist:80},{name:'新富士IC',dist:20},{name:'御殿場JCT',dist:20}],multipliers:[1.0,1.0,1.1,1.0,1.1]},chuo:{name:'中央道（E20）',ics:[{name:'甲府IC',dist:0},{name:'大月IC',dist:35},{name:'八王子IC',dist:40},{name:'調布IC',dist:25},{name:'高井戸IC',dist:8}],multipliers:[1.0,1.1,1.2,1.3]},kanetsu:{name:'関越道（E17）',ics:[{name:'湯沢IC',dist:0},{name:'本庄児玉IC',dist:80},{name:'鶴ヶ島JCT',dist:30},{name:'所沢IC',dist:10},{name:'練馬IC',dist:15}],multipliers:[1.0,1.0,1.1,1.2]}};
+// âââ è·¯ç·ã»ICãã¼ã¿ âââââââââââââââââââââââââââââââââââââââ
+const HIGHWAYS = {
+  josban:{name:'å¸¸ç£é',short:'E6',ics:[
+    {name:'æ°´æ¸IC',dist:0},{name:'åæµ¦åIC',dist:30},{name:'åæµ¦IC',dist:5},
+    {name:'æIC',dist:40},{name:'æµå±±IC',dist:10},{name:'ä¸é·JCT',dist:10}
+  ],multipliers:[1.0,1.0,1.1,1.2,1.3]},
+  tomei:{name:'æ±åé«é',short:'E1',ics:[
+    {name:'å¾¡æ®¿å ´IC',dist:0},{name:'åæ¨IC',dist:40},{name:'æ¨ªæµIC',dist:20},
+    {name:'æ±äº¬IC',dist:20},{name:'ç¨è³IC',dist:10}
+  ],multipliers:[1.0,1.2,1.4,1.3]},
+  shintomei:{name:'æ°æ±å',short:'E1A',ics:[
+    {name:'æµæ¾ããªãJCT',dist:0},{name:'å²¡å´æ±IC',dist:50},{name:'è±ç°æ±JCT',dist:15},
+    {name:'æ°æ¸æ°´JCT',dist:80},{name:'æ°å¯å£«IC',dist:20},{name:'å¾¡æ®¿å ´JCT',dist:20}
+  ],multipliers:[1.0,1.0,1.1,1.0,1.1]},
+  chuo:{name:'ä¸­å¤®é',short:'E20',ics:[
+    {name:'ç²åºIC',dist:0},{name:'å¤§æIC',dist:35},{name:'å«çå­IC',dist:40},
+    {name:'èª¿å¸IC',dist:25},{name:'é«äºæ¸IC',dist:8}
+  ],multipliers:[1.0,1.1,1.2,1.3]},
+  kanetsu:{name:'é¢è¶é',short:'E17',ics:[
+    {name:'æ¹¯æ²¢IC',dist:0},{name:'æ¬åºåçIC',dist:80},{name:'é¶´ã¶å³¶JCT',dist:30},
+    {name:'ææ²¢IC',dist:10},{name:'ç·´é¦¬IC',dist:15}
+  ],multipliers:[1.0,1.0,1.1,1.2]}
+};
+
+// å¨ICä¸è¦§ï¼ãªã¼ãã³ã³ããªã¼ãç¨ï¼
+const ALL_ICS = [];
+Object.entries(HIGHWAYS).forEach(([hwKey,hw])=>{
+  hw.ics.forEach((ic,i)=>{
+    ALL_ICS.push({name:ic.name, hwKey, hwName:hw.name, short:hw.short, idx:i, dist:ic.dist});
+  });
+});
+
+// âââ ç¥æ¥ ââââââââââââââââââââââââââââââââââââââââââââââââ
 const HOLIDAYS=new Set(['2025-01-01','2025-01-13','2025-02-11','2025-02-23','2025-02-24','2025-03-20','2025-04-29','2025-05-03','2025-05-04','2025-05-05','2025-05-06','2025-07-21','2025-08-11','2025-09-15','2025-09-22','2025-09-23','2025-10-13','2025-11-03','2025-11-23','2025-11-24','2025-12-23','2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20','2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06','2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23','2026-10-12','2026-11-03','2026-11-23']);
 function toKey(d){return d.toISOString().slice(0,10)}
 function isHoliday(d){return HOLIDAYS.has(toKey(d))}
@@ -109,20 +216,314 @@ function isLastDay(d){const t=new Date(d);t.setDate(t.getDate()+1);return t.getD
 function isGW(d){const m=d.getMonth()+1,dd=d.getDate();return(m===4&&dd>=28)||(m===5&&dd<=6)}
 function isObon(d){const m=d.getMonth()+1,dd=d.getDate();return m===8&&dd>=11&&dd<=17}
 function isNenmatsu(d){const m=d.getMonth()+1,dd=d.getDate();return(m===12&&dd>=28)||(m===1&&dd<=4)}
-function getScore(date,hour,mult){mult=mult||1.0;let s=0;const day=date.getDay(),dd=date.getDate();if([5,10,15,20,25].includes(dd)||isLastDay(date))s+=1.5;if(day===5)s+=1.2;else if(day===1)s+=0.6;else if(day===0||day===6)s+=0.4;if(isHoliday(date))s+=0.8;if(isPreHoliday(date))s+=1.5;if(isGW(date))s+=2.5;else if(isObon(date))s+=2.0;else if(isNenmatsu(date))s+=2.0;if(hour>=0&&hour<4)s-=2.5;else if(hour>=5&&hour<=6)s+=0.5;else if(hour>=7&&hour<=9)s+=2.2;else if(hour>=17&&hour<=20)s+=2.5;else if(hour>=21)s-=0.5;if(day===1&&hour===8)s+=0.8;if(day===5&&hour>=17&&hour<=19)s+=0.8;return Math.max(0,Math.min(5,s*mult))}
+
+function getScore(date,hour,mult){
+  mult=mult||1.0;let s=0;
+  const day=date.getDay(),dd=date.getDate();
+  if([5,10,15,20,25].includes(dd)||isLastDay(date))s+=1.5;
+  if(day===5)s+=1.2;else if(day===1)s+=0.6;else if(day===0||day===6)s+=0.4;
+  if(isHoliday(date))s+=0.8;if(isPreHoliday(date))s+=1.5;
+  if(isGW(date))s+=2.5;else if(isObon(date))s+=2.0;else if(isNenmatsu(date))s+=2.0;
+  if(hour>=0&&hour<4)s-=2.5;
+  else if(hour>=5&&hour<=6)s+=0.5;
+  else if(hour>=7&&hour<=9)s+=2.2;
+  else if(hour>=17&&hour<=20)s+=2.5;
+  else if(hour>=21)s-=0.5;
+  if(day===1&&hour===8)s+=0.8;
+  if(day===5&&hour>=17&&hour<=19)s+=0.8;
+  return Math.max(0,Math.min(5,s*mult));
+}
+
 function scoreClass(s){if(s<0.5)return'c0';if(s<1.5)return'c1';if(s<2.5)return'c2';if(s<3.5)return'c3';if(s<4.5)return'c4';return'c5'}
-function scoreLabel(s){if(s<0.5)return'深夜帯（空いている可能性が高い）';if(s<1.5)return'空いている可能性が高い';if(s<2.5)return'比較的スムーズな可能性が高い';if(s<3.5)return'多少の混雑が見られる傾向';if(s<4.5)return'混雑しやすい傾向';return'渋滞が発生しやすい時間帯'}
-function scoreBadge(s){if(s<1.0)return{label:'空き',cls:'lbl-green'};if(s<2.0)return{label:'やや空き',cls:'lbl-lime'};if(s<3.0)return{label:'普通',cls:'lbl-yellow'};if(s<4.0)return{label:'やや混',cls:'lbl-orange'};return{label:'混みやすい',cls:'lbl-red'}}
-function onHighwayChange(){const hw=HIGHWAYS[document.getElementById('selHighway').value];const ent=document.getElementById('selEntry');const ex=document.getElementById('selExit');ent.innerHTML='<option value="">乗るIC</option>';ex.innerHTML='<option value="">降りるIC</option>';if(!hw)return;hw.ics.forEach((ic,i)=>ent.innerHTML+=`<option value="${i}">${ic.name}</option>`)}
-function updateExitOptions(){const hw=HIGHWAYS[document.getElementById('selHighway').value];const entIdx=parseInt(document.getElementById('selEntry').value);const ex=document.getElementById('selExit');ex.innerHTML='<option value="">降りるIC</option>';if(!hw||isNaN(entIdx))return;hw.ics.forEach((ic,i)=>{if(i>entIdx)ex.innerHTML+=`<option value="${i}">${ic.name}</option>`})}
+function scoreLabel(s){if(s<0.5)return'æ·±å¤å¸¯ï¼ç©ºãã¦ããå¯è½æ§ãé«ãï¼';if(s<1.5)return'ç©ºãã¦ããå¯è½æ§ãé«ã';if(s<2.5)return'æ¯è¼çã¹ã ã¼ãºãªå¯è½æ§ãé«ã';if(s<3.5)return'å¤å°ã®æ··éãè¦ãããå¾å';if(s<4.5)return'æ··éããããå¾å';return'æ¸æ»ãçºçããããæéå¸¯'}
+function scoreBadge(s){if(s<1.0)return{label:'ç©ºã',cls:'lbl-green'};if(s<2.0)return{label:'ããç©ºã',cls:'lbl-lime'};if(s<3.0)return{label:'æ®é',cls:'lbl-yellow'};if(s<4.0)return{label:'ããæ··',cls:'lbl-orange'};return{label:'æ··ã¿ããã',cls:'lbl-red'}}
+function scoreText(s){if(s<1.0)return'ð¢ç©ºã';if(s<2.0)return'ð¡ããç©ºã';if(s<3.0)return'ð¡æ®é';if(s<4.0)return'ð ããæ··é';return'ð´æ··é'}
+
+// âââ ãªã¼ãã³ã³ããªã¼ã ââââââââââââââââââââââââââââââââââââ
+let selectedEntry=null, selectedExit=null;
+
+function onACInput(type){
+  const input=document.getElementById(type+'Input');
+  const candidates=document.getElementById(type+'Candidates');
+  const val=input.value.trim();
+  const filtered=val===''
+    ? ALL_ICS.slice(0,20)
+    : ALL_ICS.filter(ic=>{
+        const q=val.replace(/\s/g,'');
+        return ic.name.includes(q)||toHira(ic.name).includes(toHira(q))||toKata(ic.name).includes(toKata(q));
+      }).slice(0,15);
+
+  if(filtered.length===0){candidates.style.display='none';return;}
+  candidates.innerHTML=filtered.map((ic,i)=>
+    `<div class="ac-item" data-type="${type}" data-idx="${i}" onclick="selectIC('${type}','${ic.name}','${ic.hwKey}',${ic.idx})">
+      ${ic.name}<span class="ac-road">${ic.hwName}ï¼${ic.short}ï¼</span>
+    </div>`
+  ).join('');
+  candidates.style.display='block';
+}
+
+function selectIC(type,name,hwKey,idx){
+  if(type==='entry'){
+    selectedEntry={name,hwKey,idx};
+    document.getElementById('entryInput').value=name;
+  } else {
+    selectedExit={name,hwKey,idx};
+    document.getElementById('exitInput').value=name;
+  }
+  document.getElementById(type+'Candidates').style.display='none';
+}
+
+// ã²ãããªã»ã«ã¿ã«ãå¤æï¼å¥åè£å©ï¼
+function toHira(s){return s.replace(/[ã¡-ã¶]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60))}
+function toKata(s){return s.replace(/[ã-ã]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60))}
+
+// åè£ãéãã
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.ac-wrap'))['entryCandidates','exitCandidates'].forEach(id=>document.getElementById(id).style.display='none');
+});
+
+// âââ ä¿å­ã«ã¼ã âââââââââââââââââââââââââââââââââââââââââââ
+function getSavedRoutes(){try{return JSON.parse(localStorage.getItem('hwRoutes')||'[]')}catch{return[]}}
+function setSavedRoutes(r){localStorage.setItem('hwRoutes',JSON.stringify(r))}
+
+function renderSavedRoutes(){
+  const routes=getSavedRoutes();
+  const wrap=document.getElementById('savedRoutesWrap');
+  const chips=document.getElementById('savedChips');
+  if(routes.length===0){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  chips.innerHTML=routes.map((r,i)=>
+    `<div class="route-chip" onclick="loadRoute(${i})">
+      <span>${r.entry} â ${r.exit}</span>
+      <span class="del" onclick="event.stopPropagation();deleteRoute(${i})">â</span>
+    </div>`
+  ).join('');
+}
+
+function saveRoute(){
+  if(!selectedEntry||!selectedExit){alert('ä¹ãICã¨éããICãé¸æãã¦ãã ãã');return;}
+  if(selectedEntry.hwKey!==selectedExit.hwKey){alert('åãè·¯ç·ã®ICãé¸æãã¦ãã ãã');return;}
+  if(selectedEntry.idx>=selectedExit.idx){alert('ä¹ãICã¯éããICããæåãé¸æãã¦ãã ãã');return;}
+  const routes=getSavedRoutes();
+  const key=selectedEntry.name+'â'+selectedExit.name;
+  if(routes.find(r=>r.entry===selectedEntry.name&&r.exit===selectedExit.name)){alert('ãã§ã«ä¿å­æ¸ã¿ã§ã');return;}
+  routes.unshift({entry:selectedEntry.name,exit:selectedExit.name,entryHwKey:selectedEntry.hwKey,entryIdx:selectedEntry.idx,exitIdx:selectedExit.idx});
+  setSavedRoutes(routes);
+  renderSavedRoutes();
+  alert('ã«ã¼ããä¿å­ãã¾ãã');
+}
+
+function loadRoute(i){
+  const r=getSavedRoutes()[i];
+  if(!r)return;
+  const entryIC=ALL_ICS.find(ic=>ic.name===r.entry&&ic.hwKey===r.entryHwKey);
+  const exitIC=ALL_ICS.find(ic=>ic.name===r.exit&&ic.hwKey===r.entryHwKey);
+  if(!entryIC||!exitIC)return;
+  selectedEntry={name:r.entry,hwKey:r.entryHwKey,idx:r.entryIdx};
+  selectedExit={name:r.exit,hwKey:r.entryHwKey,idx:r.exitIdx};
+  document.getElementById('entryInput').value=r.entry;
+  document.getElementById('exitInput').value=r.exit;
+}
+
+function deleteRoute(i){
+  const routes=getSavedRoutes();
+  routes.splice(i,1);
+  setSavedRoutes(routes);
+  renderSavedRoutes();
+}
+
+// âââ ã°ã­ã¼ãã«ç¶æ ââââââââââââââââââââââââââââââââââââââââ
 let gHw=null,gIcs=[],gDate=null,gGrid=[];
-function showAll(){const hwKey=document.getElementById('selHighway').value;gHw=HIGHWAYS[hwKey];const entIdx=parseInt(document.getElementById('selEntry').value);const exIdx=parseInt(document.getElementById('selExit').value);const dateStr=document.getElementById('selDate').value;if(!gHw||isNaN(entIdx)||isNaN(exIdx)||!dateStr){alert('すべての項目を選択してください');return}gDate=new Date(dateStr+'T12:00:00');gIcs=gHw.ics.slice(entIdx,exIdx+1);gGrid=gIcs.map((ic,i)=>{const rawIdx=entIdx+i;const mIdx=Math.max(0,rawIdx-1);const mult=gHw.multipliers[Math.min(mIdx,gHw.multipliers.length-1)]||1.0;return Array.from({length:24},(_,h)=>getScore(gDate,h,mult))});buildHeatmap();buildBestList();buildDepartureOptions();document.getElementById('resultArea').style.display='block';document.getElementById('resultArea').scrollIntoView({behavior:'smooth'})}
-function buildHeatmap(){const header=document.getElementById('hmHeader');header.innerHTML='';for(let h=0;h<24;h++)header.innerHTML+=`<div class="hm-header-cell">${h}</div>`;const hm=document.getElementById('heatmap');hm.innerHTML='';gIcs.forEach((ic,icIdx)=>{const row=document.createElement('div');row.className='hm-row';row.innerHTML=`<div class="hm-label">${ic.name}</div>`;for(let h=0;h<24;h++){const s=gGrid[icIdx][h];const cell=document.createElement('div');cell.className=`hm-cell ${scoreClass(s)}`;cell.dataset.ic=ic.name;cell.dataset.hour=h;cell.dataset.score=s.toFixed(1);cell.addEventListener('click',showTip);row.appendChild(cell)}hm.appendChild(row)})}
-function showTip(e){const cell=e.currentTarget;const tip=document.getElementById('tip');tip.textContent=cell.dataset.ic+'  '+cell.dataset.hour+'時台\n'+scoreLabel(parseFloat(cell.dataset.score));tip.style.display='block';const rect=cell.getBoundingClientRect();let x=rect.left+window.scrollX;let y=rect.top+window.scrollY-60;if(x+190>window.innerWidth)x=window.innerWidth-195;if(y<window.scrollY+4)y=rect.bottom+window.scrollY+4;tip.style.left=x+'px';tip.style.top=y+'px';setTimeout(()=>tip.style.display='none',2000)}
-function buildDepartureOptions(){const sel=document.getElementById('selDeparture');sel.innerHTML='<option value="">出発時刻を選んで移動軌跡を表示</option>';for(let h=0;h<24;h++)sel.innerHTML+=`<option value="${h}">${h}時台出発</option>`}
-function highlightRoute(){const depHour=parseInt(document.getElementById('selDeparture').value);document.querySelectorAll('.hm-cell').forEach(c=>c.classList.remove('on-route'));document.getElementById('journeyCard').style.display='none';if(isNaN(depHour))return;let cumMin=0;const waypoints=[];gIcs.forEach((ic,i)=>{const arrH=(depHour+Math.floor(cumMin/60))%24;waypoints.push({name:ic.name,hour:arrH,score:gGrid[i][arrH]});if(i<gIcs.length-1)cumMin+=(gIcs[i+1].dist/100)*60});waypoints.forEach(wp=>{document.querySelectorAll('.hm-cell').forEach(c=>{if(c.dataset.ic===wp.name&&parseInt(c.dataset.hour)===wp.hour)c.classList.add('on-route')})});const jr=document.getElementById('journeyRow');jr.innerHTML='';waypoints.forEach((wp,idx)=>{const b=scoreBadge(wp.score);jr.innerHTML+=`<div class="j-item"><div class="j-name">${wp.name}</div><div class="j-time">${wp.hour}時台頃</div><span class="j-badge ${b.cls}">${b.label}</span></div>`;if(idx<waypoints.length-1)jr.innerHTML+='<div class="j-arrow">›</div>'});document.getElementById('journeyCard').style.display='block'}
-function buildBestList(){const scored=[];for(let h=0;h<24;h++){let cumMin=0,total=0;gIcs.forEach((ic,i)=>{const arrH=(h+Math.floor(cumMin/60))%24;total+=gGrid[i][arrH];if(i<gIcs.length-1)cumMin+=(gIcs[i+1].dist/100)*60});scored.push({hour:h,total})}scored.sort((a,b)=>a.total-b.total);const maxTotal=Math.max(...scored.map(s=>s.total));const bl=document.getElementById('bestList');bl.innerHTML='';scored.slice(0,5).forEach((s,rank)=>{const pct=Math.round((s.total/maxTotal)*100);const bc=rank===0?'#22c55e':rank===1?'#86efac':'#fbbf24';bl.innerHTML+=`<div class="best-row"><div class="best-time">${s.hour}時台</div><div class="best-bar-wrap"><div class="best-bar" style="width:${pct}%;background:${bc}"></div></div><div class="best-score">${s.total.toFixed(1)}</div></div>`})}
-const tm=new Date();tm.setDate(tm.getDate()+1);document.getElementById('selDate').value=tm.toISOString().slice(0,10);
+
+// âââ äºæ¸¬ã¡ã¤ã³ âââââââââââââââââââââââââââââââââââââââââââ
+function showAll(){
+  if(!selectedEntry||!selectedExit){alert('ä¹ãICã¨éããICããªã¹ãããé¸æãã¦ãã ãã');return;}
+  if(selectedEntry.hwKey!==selectedExit.hwKey){alert('ç¾å¨ã¯åãè·¯ç·ã®ICéã®ã¿å¯¾å¿ãã¦ãã¾ã');return;}
+  if(selectedEntry.idx>=selectedExit.idx){alert('ä¹ãICã¯éããICããæåãé¸æãã¦ãã ãã');return;}
+  const dateStr=document.getElementById('selDate').value;
+  if(!dateStr){alert('æ¥ä»ãé¸æãã¦ãã ãã');return;}
+
+  gHw=HIGHWAYS[selectedEntry.hwKey];
+  gDate=new Date(dateStr+'T12:00:00');
+  gIcs=gHw.ics.slice(selectedEntry.idx, selectedExit.idx+1);
+  gGrid=gIcs.map((ic,i)=>{
+    const rawIdx=selectedEntry.idx+i;
+    const mIdx=Math.max(0,rawIdx-1);
+    const mult=gHw.multipliers[Math.min(mIdx,gHw.multipliers.length-1)]||1.0;
+    return Array.from({length:24},(_,h)=>getScore(gDate,h,mult));
+  });
+
+  buildHeatmap();
+  buildBestList();
+  buildPredText();
+
+  const depHour=parseInt(document.getElementById('selHour').value);
+  if(!isNaN(depHour)) highlightRoute(depHour);
+  else { document.getElementById('journeyCard').style.display='none'; }
+
+  document.getElementById('resultArea').style.display='block';
+  document.getElementById('resultArea').scrollIntoView({behavior:'smooth'});
+}
+
+function buildHeatmap(){
+  const header=document.getElementById('hmHeader');
+  header.innerHTML='';
+  for(let h=0;h<24;h++) header.innerHTML+=`<div class="hm-header-cell">${h}</div>`;
+  const hm=document.getElementById('heatmap');
+  hm.innerHTML='';
+  gIcs.forEach((ic,icIdx)=>{
+    const row=document.createElement('div');
+    row.className='hm-row';
+    row.innerHTML=`<div class="hm-label">${ic.name}</div>`;
+    for(let h=0;h<24;h++){
+      const s=gGrid[icIdx][h];
+      const cell=document.createElement('div');
+      cell.className=`hm-cell ${scoreClass(s)}`;
+      cell.dataset.ic=ic.name; cell.dataset.hour=h; cell.dataset.score=s.toFixed(1);
+      cell.addEventListener('click',showTip);
+      row.appendChild(cell);
+    }
+    hm.appendChild(row);
+  });
+}
+
+function showTip(e){
+  const c=e.currentTarget;
+  const tip=document.getElementById('tip');
+  tip.textContent=c.dataset.ic+'  '+c.dataset.hour+'æå°\n'+scoreLabel(parseFloat(c.dataset.score));
+  tip.style.display='block';
+  const rect=c.getBoundingClientRect();
+  let x=rect.left+window.scrollX, y=rect.top+window.scrollY-65;
+  if(x+210>window.innerWidth)x=window.innerWidth-215;
+  if(y<window.scrollY+4)y=rect.bottom+window.scrollY+4;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+  setTimeout(()=>tip.style.display='none',2200);
+}
+
+function highlightRoute(depHour){
+  document.querySelectorAll('.hm-cell').forEach(c=>c.classList.remove('on-route'));
+  let cumMin=0;
+  const waypoints=[];
+  gIcs.forEach((ic,i)=>{
+    const arrH=(depHour+Math.floor(cumMin/60))%24;
+    waypoints.push({name:ic.name,hour:arrH,score:gGrid[i][arrH]});
+    if(i<gIcs.length-1) cumMin+=(gIcs[i+1].dist/100)*60;
+  });
+  waypoints.forEach(wp=>{
+    document.querySelectorAll('.hm-cell').forEach(c=>{
+      if(c.dataset.ic===wp.name&&parseInt(c.dataset.hour)===wp.hour) c.classList.add('on-route');
+    });
+  });
+  const jr=document.getElementById('journeyRow');
+  jr.innerHTML='';
+  waypoints.forEach((wp,idx)=>{
+    const b=scoreBadge(wp.score);
+    jr.innerHTML+=`<div class="j-item"><div class="j-name">${wp.name}</div><div class="j-time">${wp.hour}çå°é </div><span class="j-badge ${b.cls}">${b.label}</span></div>`;
+    if(idx<waypoints.length-1) jr.innerHTML+='<div class="j-arrow">âº</div>';
+  });
+  document.getElementById('journeyCard').style.display='block';
+}
+
+function buildBestList(){
+  const scored=[];
+  for(let h=0;h<24;h++){
+    let cumMin=0,total=0;
+    gIcs.forEach((ic,i)=>{
+      const arrH=(h+Math.floor(cumMin/60))%24;
+      total+=gGrid[i][arrH];
+      if(i<gIcs.length-1) cumMin+=(gIcs[i+1].dist/100)*60;
+    });
+    scored.push({hour:h,total});
+  }
+  scored.sort((a,b)=>a.total-b.total);
+  const maxT=Math.max(...scored.map(s=>s.total));
+  const bl=document.getElementById('bestList');
+  bl.innerHTML='';
+  scored.slice(0,5).forEach((s,rank)=>{
+    const pct=Math.round((s.total/maxT)*100);
+    const bc=rank===0?'#22c55e':rank===1?'#86efac':'#fbbf24';
+    bl.innerHTML+=`<div class="best-row"><div class="best-time">${s.hour}æå°</div><div class="best-bar-wrap"><div class="best-bar" style="width:${pct}%;background:${bc}"></div></div><div class="best-score">${s.total.toFixed(1)}</div></div>`;
+  });
+}
+
+// âââ äºæ¸¬ãã­ã¹ãçæ ââââââââââââââââââââââââââââââââââââââ
+function buildPredText(){
+  const days=['æ¥','æ','ç«','æ°´','æ¨','é','å'];
+  const dateStr=gDate.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+  const dayStr=days[gDate.getDay()];
+  const entry=gIcs[0].name, exit=gIcs[gIcs.length-1].name;
+
+  // ãã¼ã¯æéå¸¯ãç¹å®ï¼å¨ICã®å¹³åã¹ã³ã¢ãæé«ã®æéå¸¯ï¼
+  const hourAvg=Array.from({length:24},(_,h)=>{
+    const avg=gGrid.reduce((sum,row)=>sum+row[h],0)/gGrid.length;
+    return{hour:h,avg};
+  });
+  const morningPeak=hourAvg.filter(h=>h.hour>=5&&h.hour<=12).sort((a,b)=>b.avg-a.avg)[0];
+  const eveningPeak=hourAvg.filter(h=>h.hour>=13&&h.hour<=23).sort((a,b)=>b.avg-a.avg)[0];
+  const bestHour=hourAvg.slice().sort((a,b)=>a.avg-b.avg)[0];
+
+  // åICã»æéå¸¯ã®ç¶æ³
+  const peakRows=[];
+  [7,8,9,17,18,19].forEach(h=>{
+    const icStatus=gIcs.map((ic,i)=>ic.name+'ï¼'+scoreText(gGrid[i][h])).join(' / ');
+    peakRows.push(`  ${h}æå° | ${icStatus}`);
+  });
+
+  let specialNote='';
+  if(isGW(gDate)) specialNote='â» ã´ã¼ã«ãã³ã¦ã£ã¼ã¯æéä¸­ã®ãããä¾å¹´ããæ··éããå¯è½æ§ãé«ãã\n';
+  if(isObon(gDate)) specialNote='â» ãçæéä¸­ã®ãããä¾å¹´ããæ··éããå¯è½æ§ãé«ãã\n';
+  if(isNenmatsu(gDate)) specialNote='â» å¹´æ«å¹´å§æéä¸­ã®ãããä¾å¹´ããæ··éããå¯è½æ§ãé«ãã\n';
+  if(isHoliday(gDate)) specialNote+='â» ç¥æ¥ã®ãããä¼æ¥ã®æ··éãc¿ã¼ã³ã«ãªãå¾åãããã\n';
+  if(isPreHoliday(gDate)) specialNote+='â» ç¥æ¥åæ¥ã®ãããå¤æ¹ä»¥éã«æ··éããããå¾åãããã\n';
+
+  const scored2=[];
+  for(let h=0;h<24;h++){
+    let cumMin=0,total=0;
+    gIcs.forEach((ic,i)=>{const arrH=(h+Math.floor(cumMin/60))%24;total+=gGrid[i][arrH];if(i<gIcs.length-1)cumMin+=(gIcs[i+1].dist/100)*60;});
+    scored2.push({hour:h,total});
+  }
+  scored2.sort((a,b)=>a.total-b.total);
+  const top3=scored2.slice(0,3).map(s=>s.hour+'æå°').join('ã»');
+
+  const txt=
+`ââââââââââââââââââââââ
+${gHw.name}ï¼${gHw.short}ï¼ æ¸æ»å¾åäºæ¸¬
+${entry} â ${exit}
+${dateStr}ï¼${dayStr}ï¼
+ââââââââââââââââââââââ
+
+ãæã®æ··éãã¼ã¯ã${morningPeak.hour}æå°ãæãæ··ã¿ãããå¾å
+ãå¤æ¹ã®æ··éãã¼ã¯ã${eveningPeak.hour}çå°ãæãæ··ã¿ãããå¾å
+ãããããåºçºæå»ã${top3}ï¼ã«ã¼ãå¨ä½ã®æ··éã¹ã³ã¢ãä½ãé ï¼
+
+ãæéå¸¯å¥ã»åºéç¶æ³ã
+${peakRows.join('\n')}
+
+${specialNote}
+ãäºæ¸¬ã®æ ¹æ ã
+ææ¥ã»æéå¸¯ã»äºåæ¥ã»ç¥æ¥ã»é·æä¼æï¼GWã»ãçã»å¹´æ«å¹´å§ï¼ãªã©ã®
+éå»å¾åãã¼ã¿ã«ãã¨ã¥ãã¹ã³ã¢ãç®åºãã¦ãã¾ãã
+å®éã®æ¸æ»ã¯æ°è±¡ã»äºæã»å·¥äºç­ã«ããç°ãªãå ´åãããã¾ãã
+
+#é«ééè·¯æ¸æ»äºæ¸¬ #${gHw.name} #${entry} #${exit} #æ¸æ»æå ±
+ââââââââââââââââââââââ`;
+
+  document.getElementById('predText').textContent=txt;
+}
+
+function copyText(){
+  const txt=document.getElementById('predText').textContent;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn=document.querySelector('.copy-btn');
+    btn.textContent='â ã³ãã¼ãã¾ãã';
+    setTimeout(()=>btn.innerHTML='ð ãã­ã¹ããã³ãã¼',2000);
+  });
+}
+
+// âââ åæå âââââââââââââââââââââââââââââââââââââââââââââââ
+const tm=new Date();tm.setDate(tm.getDate()+1);
+document.getElementById('selDate').value=tm.toISOString().slice(0,10);
+renderSavedRoutes();
 </script>
 </body>
 </html>

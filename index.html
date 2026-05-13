@@ -1,75 +1,1013 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>高速道路 渋滞予測マップ</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{display:flex;height:100vh;font-family:-apple-system,'Hiragino Sans',sans-serif;background:#0f172a;color:#f1f5f9}
-#sidebar{width:300px;min-width:300px;background:#1e293b;display:flex;flex-direction:column;gap:20px;padding:20px;overflow-y:auto;z-index:1000;box-shadow:4px 0 20px rgba(0,0,0,.4)}
-#sidebar h1{font-size:18px;font-weight:700;color:#38bdf8}
-#sidebar h1 span{display:block;font-size:11px;color:#94a3b8}
-.section{background:#0f172a;border-radius:10px;padding:14px}
-.section-title{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;margin-bottom:10px}
-#date-picker{width:100%;padding:8px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:14px}
-#time-display{font-size:28px;font-weight:700;color:#f1f5f9;text-align:center;margin-bottom:10px}
-#time-slider{-webkit-appearance:none;width:100%;height:6px;background:#334155;border-radius:3px;cursor:pointer}
-#time-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#38bdf8}
-.time-labels{display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-top:4px}
-.rush-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:8px}
-.rush-seg{flex:1}
-#score-number{font-size:48px;font-weight:800;text-align:center;transition:color .3s}
-#score-label{font-size:13px;color:#94a3b8;text-align:center;margin-top:4px}
-#score-bar-wrap{height:10px;background:#1e293b;border-radius:5px;overflow:hidden;margin-top:10px}
-#score-bar{height:100%;border-radius:5px;transition:width .4s,background .4s}
-.factor-list{display:flex;flex-direction:column;gap:6px}
-.factor{display:flex;justify-content:space-between;font-size:12px;padding:6px 8px;border-radius:6px;background:#1e293b}
-.factor.active{background:#1d3353}
-.factor-name{color:#cbd5e1}
-.factor-val{font-weight:600;font-size:11px}
-.factor-val.pos{color:#f97316}.factor-val.neg{color:#34d399}.factor-val.neu{color:#64748b}
-.legend-items{display:flex;flex-direction:column;gap:5px}
-.legend-item{display:flex;align-items:center;gap:8px;font-size:12px}
-.legend-color{width:28px;height:8px;border-radius:4px}
-#map{flex:1;z-index:1}
-.road-tooltip{background:rgba(15,23,42,.9);border:1px solid #334155;color:#f1f5f9;padding:8px 12px;border-radius:8px;font-size:12px;pointer-events:none}
-#mobile-toggle{display:none;position:fixed;top:12px;left:12px;z-index:2000;background:#1e293b;border:1px solid #334155;color:#f1f5f9;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
-@media(max-width:640px){body{flex-direction:column}#sidebar{width:100%;position:fixed;top:0;left:-100%;transition:left .3s}#sidebar.open{left:0}#mobile-toggle{display:block}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>é«ééè·¯ æ¸æ»äºæ¸¬</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #263249;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #06b6d4;
+      --cyan-dark: #0891b2;
+      --cyan-light: #67e8f9;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --orange: #f97316;
+      --red: #ef4444;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    /* âââ Header âââ */
+    .header {
+      background: linear-gradient(135deg, #0c4a6e 0%, #0f172a 60%);
+      padding: 20px 16px 16px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--cyan-light);
+    }
+    .header p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* âââ Main container âââ */
+    .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+    /* âââ Section label âââ */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      margin-top: 20px;
+    }
+
+    /* âââ Card âââ */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .card-inner { padding: 16px; }
+
+    /* âââ Route selector âââ */
+    .selector-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .selector-group label {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .selector-group select {
+      width: 100%;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      padding: 8px 10px;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 24px;
+      cursor: pointer;
+      outline: none;
+    }
+    .selector-group select:focus { border-color: var(--cyan); }
+
+    .datetime-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    /* âââ Search button âââ */
+    .btn-search {
+      width: 100%;
+      background: linear-gradient(135deg, var(--cyan-dark), #0c4a6e);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+      letter-spacing: 0.03em;
+      transition: opacity 0.15s;
+    }
+    .btn-search:active { opacity: 0.8; }
+
+    /* âââ Summary banner âââ */
+    .summary-banner {
+      background: linear-gradient(135deg, #0c4a6e 0%, #1e3a5f 100%);
+      border-radius: var(--radius);
+      border: 1px solid #1d4ed8;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .summary-banner .route-label {
+      font-size: 12px;
+      color: var(--cyan-light);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .summary-banner .route-main {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 4px 0 2px;
+    }
+    .summary-banner .route-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* âââ IC timeline âââ */
+    .ic-timeline {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+    }
+    .ic-timeline::-webkit-scrollbar { display: none; }
+    .ic-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 72px;
+      flex-shrink: 0;
+    }
+    .ic-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      border: 2px solid var(--border);
+      position: relative;
+      z-index: 1;
+    }
+    .ic-node .ic-name {
+      font-size: 10px;
+      font-weight: 700;
+      margin-top: 4px;
+      text-align: center;
+      color: var(--text);
+      white-space: nowraw;
+    }
+    .ic-node .ic-time-band {
+      font-size: 10px;
+      color: var(--cyan-light);
+      margin-top: 2px;
+    }
+    .ic-node .ic-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      text-align: center;
+      max-width: 70px;
+      line-height: 1.3;
+    }
+    .ic-connector {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      margin-top: 13px;
+      min-width: 16px;
+    }
+
+    /* âââ Chart container âââ */
+    .chart-wrap {
+      position: relative;
+      height: 140px;
+      margin: 0 -4px;
+    }
+
+    /* âââ Weekly forecast âââ */
+    .week-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .day-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 4px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+    }
+    .day-cell:hover { background: var(--card2); }
+    .day-cell.selected {
+      background: rgba(6,182,212,0.15);
+      border-color: var(--cyan);
+    }
+    .day-cell .day-name {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .day-cell .day-num {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 2px 0;
+    }
+    .day-cell .day-icon { font-size: 18px; line-height: 1; }
+    .day-cell .day-score {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* âââ Tips list âââ */
+    .tips-list { list-style: none; }
+    .tips-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: var(--text);
+    }
+    .tips-list li:last-child { border-bottom: none; }
+    .tips-list .tip-icon { font-size: 14px; flex-shrink: 0; }
+
+    /* âââ History row âââ */
+    .history-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-row:last-child { border-bottom: none; }
+    .history-row .hist-label { font-size: 13px; color: var(--text); }
+    .history-row .hist-val { font-size: 13px; font-weight: 700; }
+
+    /* âââ Score pill âââ */
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* âââ Colors âââ */
+    .score-0 { background: rgba(34,197,94,0.2); color: #4ade80; }
+    .score-1 { background: rgba(234,179,8,0.2); color: #facc15; }
+    .score-2 { background: rgba(249,115,22,0.2); color: #fb923c; }
+    .score-3 { background: rgba(249,115,22,0.3); color: #f97316; }
+    .score-4 { background: rgba(239,68,68,0.2); color: #f87171; }
+
+    .dot-0 { background: var(--green); }
+    .dot-1 { background: var(--yellow); }
+    .dot-2 { background: var(--orange); }
+    .dot-3 { background: #ea580c; }
+    .dot-4 { background: var(--red); }
+
+    /* âââ Empty state âââ */
+    .empty-state {
+      text-align: center;
+      padding: 40px 24px;
+      color: var(--text-muted);
+    }
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    /* âââ Loading âââ */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 30px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .loading.active { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    /* âââ Result panel âââ */
+    #result-panel { display: none; }
+    #result-panel.active { display: block; }
+
+    /* âââ Disclaimer âââ */
+    .disclaimer {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.6;
+      padding: 0 8px;
+    }
+  </style>
 </head>
 <body>
-<button id="mobile-toggle" onclick="toggleSidebar()">☰ メニュー</button>
-<div id="sidebar">
-<h1>渋滞予測マップ <span>高速道路 混雑傾向ビジュアライザー</span></h1>
-<div class="section"><div class="section-title">日付を選択</div><input type="date" id="date-picker"/></div>
-<div class="section"><div class="section-title">時刻</div><div id="time-display">08:00</div><input type="range" id="time-slider" min="0" max="23" value="8"/><div class="time-labels"><span>深夜</span><span>朝</span><span>昼</span><span>夕</span><span>夜</span></div><div class="rush-bar" id="rush-bar"></div></div>
-<div class="section"><div class="section-title">混雑スコア</div><div id="score-number">0.0</div><div id="score-label">空いています</div><div id="score-bar-wrap"><div id="score-bar" style="width:0%"></div></div></div>
-<div class="section"><div class="section-title">混雑要因</div><div class="factor-list" id="factor-list"></div></div>
-<div class="section"><div class="section-title">凡例</div><div class="legend-items"><div class="legend-item"><div class="legend-color" style="background:#22d3ee"></div>空いている</div><div class="legend-item"><div class="legend-color" style="background:#86efac"></div>やや空き</div><div class="legend-item"><div class="legend-color" style="background:#fbbf24"></div>普通</div><div class="legend-item"><div class="legend-color" style="background:#f97316"></div>やや混雑</div><div class="legend-item"><div class="legend-color" style="background:#ef4444"></div>渋滞</div></div></div>
-<div style="font-size:10px;color:#475569;line-height:1.6">※ 曜日・五十日・祝日・時間帯に基づく統計的予測です。</div>
+
+<div class="header">
+  <h1>ð é«ééè·¯ æ¸æ»äºæ¸¬</h1>
+  <p>å¾åã¨ç¢ºçã«åºã¥ãäºæ¸¬æå ±ã§ã</p>
 </div>
-<div id="map"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="container">
+
+  <!-- âââ Route selector card âââ -->
+  <div class="section-label">ã«ã¼ããé¸ã¶</div>
+  <div class="card">
+    <div class="card-inner">
+      <div class="selector-grid">
+        <div class="selector-group">
+          <label>è·¯ç·</label>
+          <select id="sel-highway" onchange="onHighwayChange()">
+            <option value="">é¸æ</option>
+            <option value="joban">å¸¸ç£é E6</option>
+            <option value="tomei">æ±å E1</option>
+            <option value="shintomei">æ°æ±å E1A</option>
+            <option value="chuo">ä¸­å¤®é E20</option>
+            <option value="kanetsu">é¢è¶é E17</option>
+          </select>
+        </div>
+        <div class="selector-group">
+          <label>å¥å£IC</label>
+          <select id="sel-entry" onchange="onICChange()" disabled>
+            <option value="">â</option>
+          </select>
+        </div>
+        <div class="selector-group">
+          <label>åºå£IC</label>
+          <select id="sel-exit" disabled>
+            <option value="">â</option>
+          </select>
+        </div>
+      </div>
+      <div class="datetime-row">
+        <div class="selector-group">
+          <label>åºçºæ¥</label>
+          <select id="sel-date"></select>
+        </div>
+        <div class="selector-group">
+          <label>åºçºæå»</label>
+          <select id="sel-hour">
+            <option value="0">0æ</option>
+            <option value="1">1æ</option>
+            <option value="2">2æ</option>
+            <option value="3">3æ</option>
+            <option value="4">4æ</option>
+            <option value="5">5æ</option>
+            <option value="6">6æ</option>
+            <option value="7" selected>7æ</option>
+            <option value="8">8æ</option>
+            <option value="9">9æ</option>
+            <option value="10">10æ</option>
+            <option value="11">11æ</option>
+            <option value="12">12æ</option>
+            <option value="13">13æ</option>
+            <option value="14">14æ</option>
+            <option value="15">15æ</option>
+            <option value="16">16æ</option>
+            <option value="17">17æ</option>
+            <option value="18">18æ</option>
+            <option value="19">19æ</option>
+            <option value="20">20æ</option>
+            <option value="21">21æ</option>
+            <option value="22">22æ</option>
+            <option value="23">23æ</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-search" onclick="doSearch()">äºæ¸¬ãç¢ºèªãã â</button>
+    </div>
+  </div>
+
+  <!-- âââ Loading âââ -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>äºæ¸¬ãã¼ã¿ãè¨ç®ä¸­â¦</p>
+  </div>
+
+  <!-- âââ Result panel âââ -->
+  <div id="result-panel">
+
+    <!-- Summary banner -->
+    <div class="summary-banner" id="summary-banner"></div>
+
+    <!-- IC timeline -->
+    <div class="section-label">åICééæéå¸¯ã¨äºæ¸¬</div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="ic-timeline" id="ic-timeline"></div>
+        <div class="chart-wrap">
+          <canvas id="congestion-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weekly forecast -->
+    <div class="section-label">ä»é±ã®å¾åï¼ãã®ã«ã¼ãï¼</div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="week-row" id="week-row"></div>
+      </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="section-label">æ··éããããæ¡ä»¶</div>
+    <div class="card">
+      <div class="card-inner" id="tips-section"></div>
+    </div>
+
+    <!-- History -->
+    <div class="section-label">éå»ã®å¾åï¼åæ¡ä»¶ã®åèï¼</div>
+    <div class="card">
+      <div class="card-inner" id="history-section"></div>
+    </div>
+
+    <p class="disclaimer">
+      ãã®äºæ¸¬ã¯ææ¥ã»æéå¸¯ã»ã«ã¬ã³ãã¼ã®å¾åãã¼ã¿ã«åºã¥ãçµ±è¨çãªæ¨å®ã§ãã<br>
+      å®éã®äº¤éç¶æ³ã¯å¤©åã»äºæã»å·¥äºãªã©ã«ããç°ãªãå ´åãããã¾ãã<br>
+      ãåºããåã«ææ°ã®éè·¯æå ±ããç¢ºèªãã ããã
+    </p>
+
+  </div>
+
+  <!-- âââ Empty state (initial) âââ -->
+  <div id="empty-state" class="empty-state">
+    <div class="empty-icon">ð£ï¸</div>
+    <p>è·¯ç·ã»ICã»æ¥æãé¸ãã§<br>ãäºæ¸¬ãç¢ºèªããããã¿ãããã¦ãã ãã</p>
+  </div>
+
+</div>
+
 <script>
-const H26=new Set(['2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20','2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06','2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23','2026-10-12','2026-11-03','2026-11-23','2026-12-23']);
-function dk(d){return d.toISOString().slice(0,10)}function ih(d){return H26.has(dk(d))}function ad(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
-function sc(date,h){let s=0;const dow=date.getDay(),dom=date.getDate(),mo=date.getMonth()+1,yr=date.getFullYear(),ld=new Date(yr,mo,0).getDate();if([5,10,15,20,25].includes(dom)||dom===ld)s+=1.5;if(dow===5)s+=1.2;if(dow===1)s+=0.6;if(dow===0||dow===6)s+=0.4;if(ih(date))s+=0.8;if(ih(ad(date,1)))s+=1.5;if((mo===4&&dom>=29)||(mo===5&&dom<=6))s+=2.5;if(mo===8&&dom>=10&&dom<=18)s+=2;if((mo===12&&dom>=28)||(mo===1&&dom<=3))s+=2;if(h>=0&&h<=4)s-=2.5;else if(h===5||h===6)s-=0.5;else if(h>=7&&h<=9)s+=2.2;else if(h>=10&&h<=12)s+=0.3;else if(h>=13&&h<=16)s+=0.5;else if(h>=17&&h<=20)s+=2.5;else if(h>=21)s-=0.5;if(dow===1&&h>=7&&h<=10)s+=0.8;if(dow===5&&h>=17&&h<=20)s+=0.8;return Math.max(0,Math.min(5,s))}
-function col(s){return s<1?'#22d3ee':s<2?'#86efac':s<3?'#fbbf24':s<4?'#f97316':'#ef4444'}
-function lbl(s){return s<1?'空いています':s<2?'やや空いています':s<3?'普通':s<4?'やや混雑':'渋滞が予想されます'}
-const HW=[{id:'tomei',name:'東名高速(E1)',c:[[35.647,139.695],[35.455,139.572],[35.333,139.110],[35.147,138.893],[35.155,138.686],[34.976,138.409],[34.783,137.934],[34.745,137.706],[34.783,137.487],[35.072,137.052],[35.162,136.944]]},{id:'shinotomei',name:'新東名(E1A)',c:[[35.404,139.385],[35.300,139.000],[35.100,138.630],[34.970,138.280],[34.975,137.680],[35.072,137.052]]},{id:'chuo',name:'中央道(E20)',c:[[35.673,139.604],[35.641,139.374],[35.619,138.946],[35.685,138.736],[35.713,138.443],[36.048,138.133],[36.066,138.027],[35.668,137.750],[35.465,137.390],[35.251,136.915]]},{id:'tohoku',name:'東北道(E4)',c:[[35.823,139.720],[35.967,139.723],[36.173,139.545],[36.576,139.869],[36.941,140.020],[37.152,140.223],[37.753,140.514],[38.211,140.873],[38.583,140.932],[38.944,141.101],[39.268,141.102],[39.680,141.148],[40.822,140.790]]},{id:'kanetsu',name:'関越道(E17)',c:[[35.756,139.608],[35.916,139.313],[36.200,139.110],[36.317,139.017],[36.497,138.895],[36.738,138.827],[36.912,138.817],[37.391,138.849],[37.888,139.059]]},{id:'meishin',name:'名神(E1)',c:[[35.251,136.915],[35.322,136.664],[35.320,136.294],[35.278,136.228],[35.009,135.993],[35.013,135.795],[34.840,135.630],[34.775,135.534],[34.725,135.214]]},{id:'sanyo',name:'山陽道(E2)',c:[[34.725,135.214],[34.839,134.769],[34.663,133.922],[34.495,133.290],[34.421,133.178],[34.385,132.516],[34.091,132.052],[34.050,131.630],[34.004,130.954]]},{id:'hokuriku',name:'北陸道(E8)',c:[[35.320,136.294],[35.468,136.144],[35.631,136.061],[35.919,136.178],[36.091,136.243],[36.568,136.669],[36.766,137.027],[36.696,137.249],[37.035,137.854],[37.148,138.173],[37.391,138.849]]},{id:'joban',name:'常磐道(E6)',c:[[35.823,139.720],[35.950,139.960],[36.250,140.150],[36.660,140.420],[36.869,140.568],[37.358,140.800],[37.960,140.940],[38.270,141.004]]}];
-const map=L.map('map').setView([36.5,137.5],6);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
-const pm={};HW.forEach(hw=>{const pl=L.polyline(hw.c,{color:'#22d3ee',weight:4,opacity:.85}).addTo(map);pl.bindTooltip('<div class="road-tooltip"><b>'+hw.name+'</b></div>',{sticky:true});pm[hw.id]=pl});
-const dp=document.getElementById('date-picker'),ts=document.getElementById('time-slider'),td=document.getElementById('time-display'),sn=document.getElementById('score-number'),sl=document.getElementById('score-label'),sb=document.getElementById('score-bar'),fl=document.getElementById('factor-list'),rb=document.getElementById('rush-bar');
-const tmr=new Date();tmr.setDate(tmr.getDate()+1);dp.value=dk(tmr);
-function pad(n){return String(n).padStart(2,'0')}
-function gd(){const[y,m,d]=dp.value.split('-').map(Number);return new Date(y,m-1,d)}
-function buildRB(){rb.innerHTML='';const dt=gd();for(let h=0;h<24;h++){const sg=document.createElement('div');sg.className='rush-seg';sg.style.background=col(sc(dt,h));rb.appendChild(sg)}}
-function upd(){const dt=gd(),h=+ts.value;td.textContent=pad(h)+':00';const s=sc(dt,h),c=col(s);HW.forEach(hw=>pm[hw.id].setStyle({color:c,weight:4}));sn.textContent=s.toFixed(1);sn.style.color=c;sl.textContent=lbl(s);sb.style.width=(s/5*100)+'%';sb.style.background=c;const dow=dt.getDay(),dom=dt.getDate(),mo=dt.getMonth()+1,ld=new Date(dt.getFullYear(),mo,0).getDate(),dn=['日','月','火','水','木','金','土'],fs=[];const f5=[5,10,15,20,25].includes(dom)||dom===ld;fs.push({n:'五十日('+dom+'日)',v:f5?1.5:0,a:f5});fs.push({n:dn[dow]+'曜日',v:[1.2,.6,0,0,0,1.2,.4][dow],a:dow===5||dow===1||dow===0||dow===6});const hol=ih(dt);fs.push({n:'祝日',v:hol?.8:0,a:hol});const pre=ih(ad(dt,1));fs.push({n:'祝前日',v:pre?1.5:0,a:pre});const gw=(mo===4&&dom>=29)||(mo===5&&dom<=6);fs.push({n:'GW',v:gw?2.5:0,a:gw});const ob=mo===8&&dom>=10&&dom<=18;fs.push({n:'お盆',v:ob?2:0,a:ob});const ny=(mo===12&&dom>=28)||(mo===1&&dom<=3);fs.push({n:'年末年始',v:ny?2:0,a:ny});let tv=0,tn='';if(h<=4){tv=-2.5;tn='深夜帯'}else if(h>=7&&h<=9){tv=2.2;tn='朝ラッシュ'}else if(h>=17&&h<=20){tv=2.5;tn='夕ラッシュ'}else if(h>=13&&h<=16){tv=.5;tn='昼間'}else if(h>=21){tv=-.5;tn='夜間'}else{tv=.3;tn='通常時間帯'}fs.push({n:tn,v:tv,a:tv!==0});fl.innerHTML='';fs.forEach(f=>{if(!f.a&&f.v===0)return;const div=document.createElement('div');div.className='factor'+(f.a?' active':'');div.innerHTML='<span class="factor-name">'+f.n+'</span><span class="factor-val '+(f.v>0?'pos':f.v<0?'neg':'neu')+'">'+(f.a?(f.v>0?'+':'')+f.v.toFixed(1):'±0')+'</span>';fl.appendChild(div)});buildRB()}
-dp.addEventListener('change',upd);ts.addEventListener('input',upd);upd();
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open')}
+// âââââââââââââââââââââââââââââââââââââââââââââ
+//  DATA
+// âââââââââââââââââââââââââââââââââââââââââââââ
+const HIGHWAYS = {
+  joban: {
+    name: 'å¸¸ç£é',
+    code: 'E6',
+    ics: [
+      { name: 'æ°´æ¸IC',      distToNext: 30 },
+      { name: 'åæµ¦åIC',    distToNext: 5  },
+      { name: 'åæµ¦IC',      distToNext: 40 },
+      { name: 'æIC',        distToNext: 10 },
+      { name: 'æµå±±IC',      distToNext: 10 },
+      { name: 'ä¸é·JCT',     distToNext: 0  },
+    ],
+    segmentMultiplier: (fromIdx) => {
+      // æµå±±âä¸é·: idx4â5
+      if (fromIdx >= 4) return 1.3;
+      // åæµ¦âæ
+      if (fromIdx === 2) return 1.0;
+      return 1.0;
+    }
+  },
+  tomei: {
+    name: 'æ±å',
+    code: 'E1',
+    ics: [
+      { name: 'å¾¡æ®¿å ´IC',    distToNext: 40 },
+      { name: 'åæ¨IC',      distToNext: 20 },
+      { name: 'æ¨ªæµIC',      distToNext: 20 },
+      { name: 'æ±äº¬IC',      distToNext: 10 },
+      { name: 'ç¨è³IC',      distToNext: 0  },
+    ],
+    segmentMultiplier: (fromIdx) => {
+      // æ¨ªæµâæ±äº¬âç¨è³
+      if (fromIdx >= 2) return 1.4;
+      return 1.0;
+    }
+  },
+  shintomei: {
+    name: 'æ°æ±å',
+    code: 'E1A',
+    ics: [
+      { name: 'æµæ¾ããªãJCT', distToNext: 50 },
+      { name: 'å²¡å´æ±IC',      distToNext: 15 },
+      { name: 'è±ç°æ±JCT',     distToNext: 80 },
+      { name: 'æ°æ¸æ°´JCT',     distToNext: 20 },
+      { name: 'æ°å¯å£«IC',      distToNext: 20 },
+      { name: 'å¾¡æ®¿å ´JCT',     distToNext: 0  },
+    ],
+    segmentMultiplier: () => 1.0
+  },
+  chuo: {
+    name: 'ä¸­å¤®é',
+    code: 'E20',
+    ics: [
+      { name: 'ç²åºIC',    distToNext: 35 },
+      { name: 'å¤§æIC',    distToNext: 40 },
+      { name: 'å«çå­IC',  distToNext: 25 },
+      { name: 'èª¿å¸IC',    distToNext: 8  },
+      { name: 'é«äºæ¸IC',  distToNext: 0  },
+    ],
+    segmentMultiplier: (fromIdx) => {
+      // å«çå­âèª¿å¸âé«äºæ¸
+      if (fromIdx >= 2) return 1.2;
+      return 1.0;
+    }
+  },
+  kanetsu: {
+    name: 'é¢è¶é',
+    code: 'E17',
+    ics: [
+      { name: 'æ¹¯æ²¢IC',       distToNext: 80 },
+      { name: 'æ¬åºåçIC',   distToNext: 30 },
+      { name: 'é¶´ã¶å³¶JCT',   distToNext: 10 },
+      { name: 'ææ²¢IC',       distToNext: 15 },
+      { name: 'ç·´é¦¬IC',       distToNext: 0  },
+    ],
+    segmentMultiplier: () => 1.0
+  }
+};
+
+const HOLIDAYS_2025_2026 = new Set([
+  '2025-01-01','2025-01-13','2025-02-11','2025-02-23','2025-02-24',
+  '2025-03-20','2025-04-29','2025-05-03','2025-05-04','2025-05-05','2025-05-06',
+  '2025-07-21','2025-08-11','2025-09-15','2025-09-23','2025-10-13',
+  '2025-11-03','2025-11-23','2025-11-24','2025-12-23',
+  '2026-01-01','2026-01-12','2026-02-11','2026-02-23',
+  '2026-03-20','2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06',
+  '2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23','2026-10-12',
+  '2026-11-03','2026-11-23',
+]);
+
+function dateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function isHoliday(d) { return HOLIDAYS_2025_2026.has(dateKey(d)); }
+
+function isPreHoliday(d) {
+  const next = new Date(d); next.setDate(next.getDate()+1);
+  return isHoliday(next);
+}
+
+function isLastDay(d) {
+  const next = new Date(d); next.setDate(next.getDate()+1);
+  return next.getDate() === 1;
+}
+
+function isGW(d) {
+  const m = d.getMonth()+1, day = d.getDate();
+  return m === 4 && day >= 27 || (m === 5 && day <= 6);
+}
+
+function isObon(d) {
+  const m = d.getMonth()+1, day = d.getDate();
+  return m === 8 && day >= 10 && day <= 18;
+}
+
+function isNenmatsu(d) {
+  const m = d.getMonth()+1, day = d.getDate();
+  return (m === 12 && day >= 28) || (m === 1 && day <= 4);
+}
+
+function getCongestionScore(date, hour, segMultiplier = 1.0) {
+  let score = 0;
+  const dow = date.getDay();
+  const dom = date.getDate();
+
+  // äºåæ¥
+  if ([5,10,15,20,25].includes(dom) || isLastDay(date)) score += 1.5;
+
+  // ææ¥
+  if (dow === 5) score += 1.2;
+  if (dow === 1) score += 0.6;
+  if (dow === 0 || dow === 6) score += 0.4;
+
+  // ç¥æ¥
+  if (isHoliday(date)) score += 0.8;
+  if (isPreHoliday(date)) score += 1.5;
+
+  // ç¹å¥æé
+  if (isGW(date)) score += 2.5;
+  if (isObon(date)) score += 2.0;
+  if (isNenmatsu(date)) score += 2.0;
+
+  // æéå¸¯
+  if (hour >= 0 && hour < 4)   score -= 2.5;
+  if (hour >= 7 && hour <= 9)  score += 2.2;
+  if (hour >= 17 && hour <= 20) score += 2.5;
+  if (hour >= 21)              score -= 0.5;
+  if (dow === 1 && hour === 8)  score += 0.8;
+  if (dow === 5 && hour >= 17 && hour <= 19) score += 0.8;
+
+  const raw = Math.max(0, Math.min(5, score));
+  return Math.max(0, Math.min(5, raw * segMultiplier));
+}
+
+function scoreToLevel(s) {
+  if (s < 1.0) return 0;
+  if (s < 2.0) return 1;
+  if (s < 3.0) return 2;
+  if (s < 4.0) return 3;
+  return 4;
+}
+
+const LEVEL_TEXT = [
+  'ð¢ ç©ºãã¦ãã',
+  'ð¡ ããç©ºã',
+  'ð  æ®é',
+  'ð  ããæ··é',
+  'ð´ æ··é',
+];
+const LEVEL_SHORT = ['ç©ºã','ããç©º','æ®é','ããæ··','æ··é'];
+const LEVEL_DESC = [
+  'å¿«é©ã«ééã§ããå¯è½æ§ãé«ã',
+  'æ¯è¼çã¹ã ã¼ãºãªå¯è½æ§ãé«ã',
+  'å¤å°ã®æ··éãè¦ãããå¾åãããã¾ã',
+  'æ··éããããå¾åãããã¾ã',
+  'æ¸æ»ãçºçããããæéå¸¯ã§ã',
+];
+const LEVEL_COLORS = ['#22c55e','#eab308','#f97316','#ea580c','#ef4444'];
+const LEVEL_BG     = ['rgba(34,197,94,.25)','rgba(234,179,8,.25)','rgba(249,115,22,.25)','rgba(234,88,12,.25)','rgba(239,68,68,.25)'];
+
+// âââââââââââââââââââââââââââââââââââââââââââââ
+//  UI INIT
+// âââââââââââââââââââââââââââââââââââââââââââââ
+function initDateSelect() {
+  const sel = document.getElementById('sel-date');
+  const today = new Date();
+  const DAYS= ['æ¥','æ','ç«','æ°´','æ¨','é','å'];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const label = i === 0 ? 'ä»æ¥' : i === 1 ? 'ææ¥' : null;
+    const m = d.getMonth()+1, day = d.getDate();
+    const dow = DAYSBd.getDay()];
+    const hol = isHoliday(d) ? 'ð' : '';
+    const gw  = isGW(d) ? '(GW)' : isObon(d) ? '(ç¸)' : isNenmatsu(d) ? '(å¹´æ«å¹´å§)' : '';
+    const text = label
+      ? `${label} ${m}/${day}(${dow})${hol}${gw}`
+      : `${m}/${day}(${dow})${hol}${gw}`;
+    const opt = document.createElement('option');
+    opt.value = d.toISOString().split('T')[0];
+    opt.textContent = text;
+    sel.appendChild(opt);
+  }
+}
+
+function onHighwayChange() {
+  const hid = document.getElementById('sel-highway').value;
+  const entSel = document.getElementById('sel-entry');
+  const extSel = document.getElementById('sel-exit');
+
+  entSel.innerHTML = '<option value="">é¸æ</option>';
+  extSel.innerHTML = '<option value="">â</option>';
+  extSel.disabled = true;
+
+  if (!hid) { entSel.disabled = true; return; }
+  const hw = HIGHWAYS[hid];
+  hw.ics.forEach((ic, i) => {
+    if (i < hw.ics.length - 1) { // æå¾ICã¯å¥å£ã«åµããªã
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = ic.name;
+      entSel.appendChild(opt);
+    }
+  });
+  entSel.disabled = false;
+}
+
+function onICChange() {
+  const hid = document.getElementById('sel-highway').value;
+  const entIdx = parseInt(document.getElementById('sel-entry').value);
+  const extSel = document.getElementById('sel-exit');
+
+  extSel.innerHTML = '<option value="">é¸æ</option>';
+  if (!hid || isNaN(entIdx)) { extSel.disabled = true; return; }
+
+  const hw = HIGHWAYS[hid];
+  hw.ics.forEach((ic, i) => {
+    if (i > entIdx) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = ic.name;
+      extSel.appendChild(opt);
+    }
+  });
+  extSel.disabled = false;
+}
+
+ // âââââââââââââââââââââââââââââââââââââââââââââ
+//  CALCULATE
+// âââââââââââââââââââââââââââââââââââââââââââââ
+function calculateTimeBands(hw, entryIdx, exitIdx, departureHour) {
+  let cumMin = 0;
+  const result = [];
+  for (let i = entryIdx; i <= exitIdx; i++) {
+    const arrHour = Math.floor((departureHour * 60 + cumMin) / 60) % 24;
+    result.push({ ic: hw.ics[i].name, hour: arrHour, idx: i });
+    if (i < exitIdx) {
+      const dist = hw.ics[i].distToNext;
+      cumMin += (dist / 100) * 60;
+    }
+  }
+  return result;
+}
+
+let chartInstance = null;
+
+function doSearch() {
+  const hid      = document.getElementById('sel-highway').value;
+  const entIdx   = parseInt(document.getElementById('sel-entry').value);
+  const exitIdx  = parseInt(document.getElementById('sel-exit').value);
+  const dateVal  = document.getElementById('sel-date').value;
+  const hour     = parseInt(document.getElementById('sel-hour').value);
+
+  if (!hid || isNaN(entIdx) || isNaN(exitIdx) || !dateVal) {
+    alert('è·¯ç·ã»å¥å£ICã»åºå£ICã»æ¥æãé¸æãã¦ãã ãã');
+    return;
+  }
+  if (entIdx >= exitIdx) {
+    alert('åºå£ICã¯å¥å£ICããåãé¸ãã§ãã ãã');
+    return;
+  }
+
+  const hw   = HIGHWAYS[hid];
+  const date = new Date(dateVal + 'T00:00:00');
+
+  // Show loading
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('result-panel').classList.remove('active');
+  document.getElementById('loading').classList.add('active');
+
+  setTimeout(() => {
+    renderResult(hw, entIdx, exitIdx, date, hour);
+    document.getElementById('loading').classList.remove('active');
+    document.getElementById('result-panel').classList.add('active');
+    document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 400);
+}
+
+function renderResult(hw, entIdx, exitIdx, date, depHour) {
+  const bands = calculateTimeBands(hw, entIdx, exitIdx, depHour);
+  const DAYS = ['æ¥','æ','ç«','æ°´','æ¨','é','å'];
+
+  // ââ Summary banner ââ
+  const entIC  = hw.ics[entIdx].name;
+  const extIC  = hw.ics[exitIdx].name;
+  const dow    = DAYS[date.getDay()];
+  const m      = date.getMonth()+1;
+  const d      = date.getDate();
+  const firstBand = bands[0];
+  const firstScore = getCongestionScore(date, firstBand.hour, hw.segmentMultiplier(entIdx));
+  const firstLevel = scoreToLevel(firstScore);
+
+  document.getElementById('summary-banner').innerHTML = `
+    <div class="route-label">${hw.name} (${hw.code})</div>
+    <div class="route-main">${entIC} â ${extIC}</div>
+    <div class="route-sub">${m}/${d}(${dow}) &nbsp;${depHour}æåºçº</div>
+    <div style="margin-top:10px">
+      <span class="score-pill score-${firstLevel}">
+        ${LEVEL_TEXT[firstLevel]}
+      </span>
+      <span style="font-size:12px;color:#94a3b8;margin-left:8px">${LEVEL_DESC[firstLevel]}</span>
+    </div>
+  `;
+
+  // ââ IC timeline ââ
+  const timeline = document.getElementById('ic-timeline');
+  timeline.innerHTML = '';
+  bands.forEach((b, i) => {
+    const score  = getCongestionScore(date, b.hour, hw.segmentMultiplier(b.idx > 0 ? b.idx - 1 : 0));
+    const level  = scoreToLevel(score);
+    const node   = document.createElement('div');
+    node.className = 'ic-node';
+    node.innerHTML = `
+      <div class="ic-dot dot-${level}">${i === 0 ? 'å¥' : i === bands.length-1 ? 'åº' : 'â'}</div>
+      <div class="ic-name">${b.ic.replace('IC','').replace('JCT','JCT')}</div>
+      <div class="ic-time-band">${b.hour}æå°</div>
+      <div class="ic-label">${LEVEL_SHORT[level]}</div>
+    `;
+    timeline.appendChild(node);
+    if (i < bands.length - 1) {
+      const conn = document.createElement('div');
+      conn.className = 'ic-connector';
+      timeline.appendChild(conn);
+    }
+  });
+
+  // ââ Bar chart (6æã23æ) ââ
+  const hours = Array.from({length: 18}, (_, i) => i + 6);
+  const scores = hours.map(h => {
+    // Use average multiplier for the route
+    const avgMult = (hw.segmentMultiplier(entIdx) + hw.segmentMultiplier(exitIdx > 0 ? exitIdx-1 : 0)) / 2;
+    return getCongestionScore(date, h, avgMult);
+  });
+  const colors = scores.map(s => LEVEL_COLORS[scoreToLevel(s)]);
+  const bgColors = scores.map(s => LEVEL_BG[scoreToLevel(s)]);
+
+  // Highlight IC arrival hours
+  const icHours = new Set(bands.map(b => b.hour));
+
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const ctx = document.getElementById('congestion-chart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: hours.map(h => `${h}æ`),
+      datasets: [{
+        data: scores,
+        backgroundColor: colors,
+        borderColor: colors,
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const s = ctx.raw;
+              const lv = scoreToLevel(s);
+              return ` ${LEVEL_TEXT[lv]} (${s.toFixed(1)})`;
+            },
+            title: (items) => `${items[0].label} â ${LEVEL_DESC[scoreToLevel(items[0].raw)]}`
+          },
+          backgroundColor: '#1e293b',
+          titleColor: '#67e8f9',
+          bodyColor: '#f1f5f9',
+          borderColor: '#334155',
+          borderWidth: 1,
+          cornerRadius: 8,
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(51,65,85,0.5)' },
+          ticks: { color: '#94a3b8', font: { size: 10 } }
+        },
+        y: {
+          min: 0, max: 5,
+          grid: { color: 'rgba(51,65,85,0.5)' },
+          ticks: {
+            color: '#94a3b8', font: { size: 10 },
+            callback: (v) => ['','ä½','','ä¸­','','é«'][v] || ''
+          }
+        }
+      },
+      animation: { duration: 500 }
+    },
+    plugins: [{
+      id: 'icMarkers',
+      afterDraw(chart) {
+        const { ctx, scales: { x, y } } = chart;
+        bands.forEach(b => {
+          const hIdx = hours.indexOf(b.hour);
+          if (hIdx < 0) return;
+          const xPos = x.getPixelForValue(hIdx);
+          const yPos = y.getPixelForValue(5) + 4;
+          ctx.save();
+          ctx.fillStyle = '#67e8f9';
+          ctx.font = 'bold 8px -apple-system';
+          ctx.textAlign = 'center';
+          const label = b.ic.replace('IC','').replace('JCT','').slice(0,4);
+          ctx.fillText('â¼', xPos, yPos);
+          ctx.restore();
+        });
+      }
+    }]
+  });
+
+  // ââ Weekly row ââ
+  const weekRow = document.getElementById('week-row');
+  weekRow.innerHTML = '';
+  const selectedDateStr = dateKey(date);
+  for (let i = 0; i < 7; i++) {
+    const wd = new Date();
+    wd.setDate(wd.getDate() + i);
+    const avgMult = (hw.segmentMultiplier(entIdx) + hw.segmentMultiplier(exitIdx > 0 ? exitIdx-1 : 0)) / 2;
+    const ws = getCongestionScore(wd, depHour, avgMult);
+    const wl = scoreToLevel(ws);
+    const EMOJIS = ['ð¢','ð¡','ð ','ð ','ð´'];
+    const isSelected = dateKey(wd) === selectedDateStr;
+    const cell = document.createElement('div');
+    cell.className = 'day-cell' + (isSelected ? ' selected' : '');
+    cell.innerHTML = `
+      <div class="day-name">${DAYS[wd.getDay()]}</div>
+      <div class="day-num">${wd.getDate()}</div>
+      <div class="day-icon">${EMOJIS[wl]}</div>
+      <div class="day-score">${LEVEL_SHORT[wl]}</div>
+    `;
+    cell.onclick = () => {
+      document.querySelectorAll('.day-cell').forEach(c => c.classList.remove('selected'));
+      cell.classList.add('selected');
+    };
+    weekRow.appendChild(cell);
+  }
+
+  // ââ Tips ââ
+  const tips = [];
+  const dom = date.getDate();
+  if ([5,10,15,20,25].includes(dom) || isLastDay(date)) tips.push({ icon:'ð', text:`ä»æ¥ã¯äºåæ¥ï¼${dom}æ¥ï¼ã§ããä¼æ¥­ã®æ±ºæ¸ãéä¸­ããç¹ã«é½å¸é¨ã¸ã®æµå¥ãå¢ããå¾åãããã¾ãã` });
+  if (isGW(date)) tips.push({ icon:'ð¸', text:'ã´ã¼ã«ãã³ã¦ã£ã¼ã¯æéä¸­ã§ããé·è·é¢ç§»åãéå¸¸ã«å¤ããç¹ã«ååä¸­ãå¤æ¹ã«ããã¦æ··éããããå¾åãããã¾ãã' });
+  if (isObon(date)) tips.push({ icon:'ð®', text:'ãçä¼ã¿æéä¸­ã§ããå¸°çã»Uã¿ã¼ã³ã©ãã·ã¥ãçºçããããææã§ãã' });
+  if (isNenmatsu(date)) tips.push({ icon:'ð', text:'å¹´æ«å¹´å§æéä¸­ã§ããå¸°çã»åè©£ãªã©ã§æ··éããããå¾åãããã¾ãã' });
+  if (isPreHoliday(date)) tips.push({ icon:'ð', text:'ææ¥ãç¥æ¥ã®ãããå¤æ¹ä»¥éã«å¸°å®ã©ãã·ã¥ãéä¸­ããããå¾åãããã¾ãã' });
+  if (isHoliday(date)) tips.push({ icon:'ð', text:'ç¥æ¥ã®ãããã¬ã¸ã£ã¼ã»å¸°çã®ç§»åãå¢ããããå¾åãããã¾ãã' });
+  if (date.getDay() === 5) tips.push({ icon:'â ï¸', text:'éææ¥ã®å¤æ¹ãå¤éã¯ãé±æ«ã®å¸°å®ãã¬ã¸ã£ã¼ã§æ··éããããå¾åãããã¾ãã' });
+  if (date.getDay() === 1) tips.push({ icon:'ð', text:'æææ¥ã®æã¯ãéå¤ã©ãã·ã¥ãç¹ã«éä¸­ããããå¾åãããã¾ãã' });
+  if (depHour >= 7 && depHour <= 9) tips.push({ icon:'ð', text:'æã©ãã·ã¥ã®æéå¸¯ï¼7ã9æå°ï¼ã§ããéå¤è»ä¸¡ãå¤ããæµå¥ç®æä»è¿ã§ã®æ¸æ»ãçºçããããå¾åãããã¾ãã' });
+  if (depHour >= 17 && depHour <= 20) tips.push({ icon:'ð', text:'å¤æ¹ã©ãã·ã¥ã®æéå¸¯ï¼17ã20æå°ï¼ã§ããç¹ã«é½å¸é¨åãã®æµãã§æ¸æ»ãçºçããããå¾åãããã¾ãã' });
+  if (tips.length === 0) tips.push({ icon:'â', text:'ç¹å¥ãªæ··éè¦å ã¯è¦å½ããã¾ãããæ¯è¼çã¹ã ã¼ãºã«ééã§ããå¯è½æ§ãããã¾ãã' });
+
+  const tipsSection = document.getElementById('tips-section');
+  tipsSection.innerHTML = `<ul class="tips-list">${tips.map(t => `<li><span class="tip-icon">${t.icon}</span><span>${t.text}</span></li>`).join('')}</ul>`;
+
+  // ââ History ââ
+  const histItems = [];
+  // éå»4é±åææ¥ã®å¹³å
+  const pastScores = [];
+  for (let w = 1; w <= 4; w++) {
+    const pd = new Date(date);
+    pd.setDate(date.getDate() - w * 7);
+    const avgMult = (hw.segmentMultiplier(entIdx) + hw.segmentMultiplier(exitIdx > 0 ? exitIdx-1 : 0)) / 2;
+    pastScores.push(getCongestionScore(pd, depHour, avgMult));
+  }
+  const avgPast = pastScores.reduce((a,b)=>a+b,0)/pastScores.length;
+  const avgLevel = scoreToLevel(avgPast);
+  const currentScore = getCongestionScore(date, depHour, (hw.segmentMultiplier(entIdx) + hw.segmentMultiplier(exitIdx > 0 ? exitIdx-1 : 0)) / 2);
+  const currentLevel = scoreToLevel(currentScore);
+
+  histItems.push({ label:`éå»4é±åææ¥ã»åæå»ã®å¹³å`, val: LEVEL_TEXT[avgLevel], lv: avgLevel });
+  histItems.push({ label:`ä»åã®äºæ¸¬`, val: LEVEL_TEXT[currentLevel], lv: currentLevel });
+  if (currentLevel > avgLevel) histItems.push({ label:'å¾å', val:'ä»åã­å¹³åããæ··ã¿ãããå¯è½æ§ãããã¾ã', lv: currentLevel });
+  else if (currentLevel < avgLevel) histItems.push({ label:'å¾å', val:'ä»åã¯å¹³åããç©ºãã¦ããå¯è½æ§ãããã¾ã', lv: 0 });
+  else histItems.push({ label:'å¾å', val:'éå»å¹³åã¨åç¨åº¦ã®äº¤ééãè¦è¾¼ã¾ãã¾ã', lv: avgLevel });
+
+  document.getElementById('history-section').innerHTML = histItems.map(item => `
+    <div class="history-row">
+      <span class="hist-label">${item.label}</span>
+      <span class="hist-val score-pill score-${item.lv}">${item.val}</span>
+    </div>
+  `).join('');
+}
+
+// âââââââââââââââââââââââââââââââââââââââââââââ
+//  BOOT
+// âââââââââââââââââââââââââââââââââââââââââââââ
+initDateSelect();
 </script>
 </body>
 </html>

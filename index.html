@@ -118,6 +118,16 @@
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
+  .search-input-wrap { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .search-input { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 16px; width: 100%; outline: none; -webkit-appearance: none; }
+  .search-input:focus { border-color: var(--accent); }
+  .ic-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; max-height: 60vh; overflow-y: auto; }
+  .ic-suggestion { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: background .15s, border-color .15s; min-width: 0; }
+  .ic-suggestion:hover, .ic-suggestion:active { background: rgba(56,189,248,.15); border-color: var(--accent); }
+  .ic-suggestion-name { font-size: 15px; font-weight: 500; }
+  .ic-suggestion-hw { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .no-result { padding: 20px; text-align: center; color: var(--muted); font-size: 14px; width: 100%; }
+
   .screen { display: none; }
   .screen.active { display: block; }
 
@@ -138,35 +148,33 @@
 
 <div class="container">
 
-  <!-- SCREEN 1: Route -->
+  <!-- SCREEN 1: Entry IC search -->
   <div class="screen active" id="screen1">
     <div class="card">
-      <div class="card-title">路線を選ぶ</div>
-      <ul class="select-list" id="highwayList"></ul>
+      <div class="card-title">乗るIC（入口）を入力</div>
+      <div class="search-input-wrap">
+        <input type="text" id="entrySearch" class="search-input" placeholder="IC名を入力（例: 三郷、東京、御殿場）" autocomplete="off">
+      </div>
+      <div class="ic-suggestions" id="entrySuggestions"></div>
     </div>
   </div>
 
-  <!-- SCREEN 2: Entry IC -->
+  <!-- SCREEN 2: Exit IC search -->
   <div class="screen" id="screen2">
-    <button class="btn-back" onclick="goToScreen(1)">‹ 路線選択に戻る</button>
+    <button class="btn-back" onclick="goToScreen(1)">‹ 入口IC選択に戻る</button>
+    <div class="summary-banner" id="screen2Banner"></div>
     <div class="card">
-      <div class="card-title">乗るIC（入口）を選ぶ</div>
-      <div class="ic-grid" id="entryIcList"></div>
+      <div class="card-title">降りるIC（出口）を入力</div>
+      <div class="search-input-wrap">
+        <input type="text" id="exitSearch" class="search-input" placeholder="降りるICを検索…" autocomplete="off">
+      </div>
+      <div class="ic-suggestions" id="exitSuggestions"></div>
     </div>
   </div>
 
-  <!-- SCREEN 3: Exit IC -->
+  <!-- SCREEN 3: Date & Time -->
   <div class="screen" id="screen3">
-    <button class="btn-back" onclick="goToScreen(2)">‹ 入口IC選択に戻る</button>
-    <div class="card">
-      <div class="card-title">降りるIC（出口）を選ぶ</div>
-      <div class="ic-grid" id="exitIcList"></div>
-    </div>
-  </div>
-
-  <!-- SCREEN 4: Date & Time -->
-  <div class="screen" id="screen4">
-    <button class="btn-back" onclick="goToScreen(3)">‹ 出口IC選択に戻る</button>
+    <button class="btn-back" onclick="goToScreen(2)">‹ 出口IC選択に戻る</button>
     <div class="card">
       <div class="card-title">出発日・出発時刻を選ぶ</div>
       <div class="datetime-row">
@@ -184,9 +192,9 @@
     <button class="btn-primary" onclick="showResult()">予測を見る ›</button>
   </div>
 
-  <!-- SCREEN 5: Result -->
-  <div class="screen" id="screen5">
-    <button class="btn-back" onclick="goToScreen(4)">‹ 条件を変更する</button>
+  <!-- SCREEN 4: Result -->
+  <div class="screen" id="screen4">
+    <button class="btn-back" onclick="goToScreen(3)">‹ 条件を変更する</button>
 
     <div class="summary-banner" id="summaryBanner"></div>
     <div id="overallAlert"></div>
@@ -342,54 +350,83 @@ function goToScreen(n) {
 function updateStepDots() {
   const dots = document.getElementById('stepDots');
   dots.innerHTML = '';
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 4; i++) {
     const d = document.createElement('div');
     d.className = 'step-dot' + (i === state.currentScreen ? ' active' : i < state.currentScreen ? ' done' : '');
     dots.appendChild(d);
   }
 }
 
-function initHighwayList() {
-  const ul = document.getElementById('highwayList');
-  HIGHWAYS.forEach(hw => {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>${hw.name}</span><span class="chevron">›</span>`;
-    li.onclick = () => { state.highway = hw; state.entryIdx = null; state.exitIdx = null; renderEntryIcList(); goToScreen(2); };
-    ul.appendChild(li);
+const ALL_ICS_FLAT = [];
+HIGHWAYS.forEach(hw => {
+  hw.ics.forEach((ic, idx) => {
+    ALL_ICS_FLAT.push({ name: ic.name, highway: hw, idx });
   });
-}
+});
 
-function renderEntryIcList() {
-  const hw = state.highway;
-  const container = document.getElementById('entryIcList');
+function renderSuggestions(containerId, items, onSelect) {
+  const container = document.getElementById(containerId);
   container.innerHTML = '';
-  hw.ics.forEach((ic, i) => {
-    if (i === hw.ics.length - 1) return;
+  if (items.length === 0) {
+    container.innerHTML = '<div class="no-result">該当するICが見つかりません</div>';
+    return;
+  }
+  items.forEach(ic => {
     const div = document.createElement('div');
-    div.className = 'ic-item' + (i === state.entryIdx ? ' selected' : '');
-    div.innerHTML = `<div class="ic-dot"></div><div class="ic-name">${ic.name}</div><div class="ic-dist">${ic.distanceToNext > 0 ? ic.distanceToNext + 'km →' : ''}</div>`;
-    div.onclick = () => { state.entryIdx = i; state.exitIdx = null; renderExitIcList(); goToScreen(3); };
+    div.className = 'ic-suggestion';
+    div.innerHTML = `<div class="ic-suggestion-name">${ic.name}</div><div class="ic-suggestion-hw">${ic.highway.name}</div>`;
+    div.onclick = () => onSelect(ic);
     container.appendChild(div);
   });
 }
 
-function renderExitIcList() {
-  const hw = state.highway;
-  const container = document.getElementById('exitIcList');
-  container.innerHTML = '';
-  hw.ics.forEach((ic, i) => {
-    const div = document.createElement('div');
-    div.className = 'ic-item' + (i <= state.entryIdx ? ' disabled' : '') + (i === state.exitIdx ? ' selected' : '');
-    div.innerHTML = `<div class="ic-dot"></div><div class="ic-name">${ic.name}</div><div class="ic-dist">${i === state.entryIdx ? '入口' : ''}</div>`;
-    if (i > state.entryIdx) {
-      div.onclick = () => {
-        state.exitIdx = i;
-        container.querySelectorAll('.ic-item').forEach((el, j) => el.classList.toggle('selected', j === i));
-        setTimeout(() => goToScreen(4), 150);
-      };
-    }
-    container.appendChild(div);
+function filterEntryICs(query) {
+  const q = (query || '').trim().toLowerCase();
+  return ALL_ICS_FLAT.filter(ic => {
+    if (ic.idx === ic.highway.ics.length - 1) return false;
+    if (!q) return true;
+    return ic.name.toLowerCase().includes(q) || ic.highway.name.toLowerCase().includes(q);
   });
+}
+
+function filterExitICs(query) {
+  const q = (query || '').trim().toLowerCase();
+  return ALL_ICS_FLAT.filter(ic => {
+    if (ic.highway !== state.highway) return false;
+    if (ic.idx <= state.entryIdx) return false;
+    if (!q) return true;
+    return ic.name.toLowerCase().includes(q);
+  });
+}
+
+function initEntrySearch() {
+  const input = document.getElementById('entrySearch');
+  const update = () => {
+    renderSuggestions('entrySuggestions', filterEntryICs(input.value), ic => {
+      state.highway = ic.highway;
+      state.entryIdx = ic.idx;
+      state.exitIdx = null;
+      initExitSearch();
+      goToScreen(2);
+    });
+  };
+  input.addEventListener('input', update);
+  update();
+}
+
+function initExitSearch() {
+  const input = document.getElementById('exitSearch');
+  input.value = '';
+  document.getElementById('screen2Banner').innerHTML =
+    `<span class="tag">${state.highway.name}</span><span class="tag">入口: ${state.highway.ics[state.entryIdx].name}</span>`;
+  const update = () => {
+    renderSuggestions('exitSuggestions', filterExitICs(input.value), ic => {
+      state.exitIdx = ic.idx;
+      goToScreen(3);
+    });
+  };
+  input.oninput = update;
+  update();
 }
 
 function initDateScreen() {
@@ -478,7 +515,7 @@ function showResult() {
   renderChart(passings, scores);
   renderWeekCalendar();
   renderConditions();
-  goToScreen(5);
+  goToScreen(4);
 }
 
 function renderChart(passings, icScores) {
@@ -591,7 +628,7 @@ function renderConditions() {
 
 (function init() {
   updateStepDots();
-  initHighwayList();
+  initEntrySearch();
   initDateScreen();
 })();
 </script>

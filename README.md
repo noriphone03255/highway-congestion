@@ -1,9 +1,9 @@
 # 高速道路 渋滞ヒートマップ
 
-ルート × 時間帯の 2D ヒートマップで高速道路の混雑を一望し、おすすめ出発時刻を自動算出する Web / iOS / Android アプリ。
+ルート × 時間帯の 2D ヒートマップで高速道路の混雑を一望し、おすすめ出発時刻を自動算出するアプリ。
 
 - **Web 版**: ルート直下の `index.html` がそのまま動く（GitHub Pages 配信）
-- **ネイティブ版**: [Capacitor](https://capacitorjs.com/) で iOS / Android プロジェクトを生成
+- **モバイルアプリ**: [Expo](https://expo.dev/) + `react-native-webview` で iOS / Android にラップ。Expo Go アプリで QR コードを読むだけで実機プレビュー可能。
 
 ## 機能
 
@@ -18,13 +18,17 @@
 
 ```
 .
-├── index.html              # Web 版エントリ（編集はここ）
-├── www/                    # Capacitor ビルド出力（.gitignore）
-├── ios/                    # iOS Xcode プロジェクト
-├── android/                # Android Studio プロジェクト
-├── capacitor.config.json   # Capacitor 設定
+├── index.html              # Web 版エントリ。アプリの本体（編集はここ）
+├── App.js                  # Expo の WebView ラッパ
+├── htmlContent.js          # AUTO-GENERATED: index.html を JS 文字列に変換したもの
+├── scripts/build-html.js   # 上記を生成するビルドスクリプト
+├── app.json                # Expo 設定（アプリ名・bundle id・splash 等）
+├── index.js                # Expo エントリポイント
+├── assets/                 # アイコン・スプラッシュ画像
 └── package.json
 ```
+
+`htmlContent.js` は `.gitignore` 済み。`npm start` の `prestart` フックで自動再生成されるため、`index.html` を編集すればそのまま反映されます。
 
 ## セットアップ
 
@@ -32,64 +36,69 @@
 npm install
 ```
 
-Capacitor 8 系から iOS プラグインは Swift Package Manager 経由で取り込まれるため、**CocoaPods は不要** です。
-
-### 必要な開発環境
-
-| プラットフォーム | 必要 |
-| --- | --- |
-| iOS | Xcode 15+ / iOS 14.0+ ターゲット |
-| Android | Android Studio Iguana+ / Android SDK 34+ |
+スマホ側に **Expo Go** アプリ（[App Store](https://apps.apple.com/jp/app/expo-go/id982107779) / [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent)）をインストールしておきます。
 
 ## 開発ワークフロー
 
-### 1. Web で確認
+### 実機プレビュー（Expo Go）
+
+```bash
+npm start
+```
+
+ターミナルに QR コードが表示されるので、
+
+- **iOS**: 標準カメラアプリで QR を読み取り → Expo Go が起動
+- **Android**: Expo Go アプリ内のスキャナで QR を読み取り
+
+スマホと PC が同じ Wi-Fi 上にあれば即座にプレビューできます。別ネットワークなら `npx expo start --tunnel` でトンネルモード。
+
+### Web で確認
 
 ```bash
 python3 -m http.server 8765   # ルート直下で
 open http://localhost:8765
 ```
 
-### 2. ネイティブに同期
+`index.html` を直接ブラウザで開く形。Expo は経由しません。
 
-`index.html` を編集したら必ず実行：
-
-```bash
-npm run sync
-```
-
-これで `www/index.html` を更新し、`cap sync` で iOS/Android 両プロジェクトに反映されます。
-
-### 3. iOS で起動
+### iOS シミュレータ / Android エミュレータで起動
 
 ```bash
-npm run ios          # Xcode を開く
-# Xcode 上で実機 or シミュレータを選択して ▶ 実行
+npm run ios       # Xcode のシミュレータ起動が必要
+npm run android   # Android Studio のエミュレータ起動が必要
 ```
 
-シミュレータ未インストールの場合は Xcode → Settings → Components から iOS Simulator runtime をダウンロード。
+## 配布（EAS Build）
 
-### 4. Android で起動
+Expo Go は開発用サンドボックス。App Store / Google Play に出す場合は EAS Build を使います。
 
 ```bash
-npm run android      # Android Studio を開く
-# Gradle 同期完了後、▶ 実行
+npm install -g eas-cli
+eas login
+eas build:configure
+eas build -p ios          # iOS .ipa
+eas build -p android      # Android .aab
+eas submit -p ios         # App Store Connect にアップロード
+eas submit -p android     # Google Play Console にアップロード
 ```
+
+iOS の本番ビルドには Apple Developer Program アカウント（年 $99）が必要です。
 
 ## アプリ情報
 
-- **App ID**: `com.nori.highwayheatmap`
 - **App 名**: 渋滞ヒートマップ
+- **Bundle ID**: `com.nori.highwayheatmap`
 - **背景色**: `#0f172a`（ダークテーマ）
-- **対応プラグイン**: `@capacitor/status-bar`, `@capacitor/app`（Android 戻るボタン → 前画面遷移）
+- **方式**: WebView ベース（HTML/CSS/JS をそのまま実機表示）
 
 ## 配布前のチェックリスト
 
-- [ ] アプリアイコン（`ios/App/App/Assets.xcassets/AppIcon.appiconset/`、`android/app/src/main/res/mipmap-*/`）を差し替え
-- [ ] `CFBundleShortVersionString` / `versionName` をリリース番号に更新
-- [ ] iOS: 開発者アカウントで署名 → Archive → App Store Connect
-- [ ] Android: `keystore` 作成 → `./gradlew assembleRelease` → Play Console アップロード
+- [ ] `assets/icon.png` `assets/splash-icon.png` `assets/adaptive-icon.png` を専用デザインに差し替え
+- [ ] `app.json` の `version` をリリース番号に更新
 - [ ] プライバシーポリシー URL を Store 提出時に明記
+- [ ] EAS Build で本番アプリをビルド・署名
+- [ ] TestFlight / Internal Testing で実機検証
 
 ## 注意
 

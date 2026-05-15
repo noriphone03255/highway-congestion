@@ -300,7 +300,7 @@ const HIGHWAYS_RAW = [
     ['旭川北IC',10,'r'],['旭川鷹栖IC',60,'r'],['深川IC',30,'r'],
     ['砂川IC',25,'r'],['岩見沢IC',35,'r'],['江別東IC',10,'mo'],
     ['札幌北IC',8,'mo'],['札幌IC',6,'mc'],['札幌南IC',8,'s'],
-    ['北広島IC',10,'s'],['千歳IC',8,'s'],['新千歳空港IC',25,'r'],
+    ['北広島IC',10,'s'],['千歳恵庭JCT',5,'s'],['千歳IC',8,'s'],['新千歳空港IC',25,'r'],
     ['苫小牧東IC',10,'r'],['苫小牧中央IC',8,'r'],['苫小牧西IC',35,'r'],
     ['白老IC',25,'r'],['登別東IC',15,'r'],['室蘭IC',30,'r'],
     ['虻田洞爺湖IC',0,'r']
@@ -466,9 +466,9 @@ const HIGHWAYS_RAW = [
     ['菊川IC',12,'r'],['相良牧之原IC',12,'r'],['吉田IC',12,'r'],
     ['焼津IC',12,'r'],['日本平久能山IC',12,'r'],['静岡IC',12,'r'],
     ['清水IC',15,'r'],['富士川SA',12,'r'],['富士IC',8,'r'],
-    ['裾野IC',25,'r'],['御殿場IC',15,'r'],['足柄IC',8,'r'],
-    ['大井松田IC',20,'s'],['秦野中井IC',12,'s'],['厚木IC',15,'s'],
-    ['横浜町田IC',12,'mo'],['東名川崎IC',8,'mo'],['東京IC',12,'mc'],
+    ['裾野IC',15,'r'],['御殿場JCT',8,'r'],['御殿場IC',8,'r'],['足柄IC',8,'r'],
+    ['大井松田IC',20,'s'],['秦野中井IC',12,'s'],['厚木IC',12,'s'],
+    ['海老名JCT',5,'s'],['横浜町田IC',12,'mo'],['東名川崎IC',8,'mo'],['東京IC',12,'mc'],
     ['用賀IC',0,'u']
   ]},
   { id: 'shinotomei', name: '新東名 (E1A)', ics: [
@@ -775,6 +775,28 @@ HIGHWAYS.forEach(hw => {
   }
 });
 
+/* 同名のJCTを別高速間で 0 距離リンク
+ * (例: 三郷JCT が常磐道と外環道の双方にあれば、互いに行き来可能にする)
+ * これで BFS が高速をまたいだ経路を探索できる。
+ */
+(function linkJCTs() {
+  const groups = new Map(); // jctName -> [icId, ...]
+  IC_NODES.forEach(node => {
+    if (!node.name.endsWith('JCT')) return;
+    if (!groups.has(node.name)) groups.set(node.name, []);
+    groups.get(node.name).push(node.id);
+  });
+  groups.forEach(ids => {
+    if (ids.length < 2) return;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        IC_GRAPH.get(ids[i]).push({ neighborId: ids[j], distance: 0 });
+        IC_GRAPH.get(ids[j]).push({ neighborId: ids[i], distance: 0 });
+      }
+    }
+  });
+})();
+
 /* BFS: from→to の最短経路を [{node, distToNext}] で返す。到達不能ならnull */
 function bfsRoute(fromId, toId) {
   if (fromId === toId) return null;
@@ -1007,7 +1029,7 @@ function initDateScreen() {
   const route = state.route;
   document.getElementById('routeBadge').innerHTML =
     `<span><strong>${route[0].name}</strong> → <strong>${route[route.length-1].name}</strong> ` +
-    `<span style="color:var(--muted);font-size:11px">(${route[0].highwayName} ${totalDistance(route)}km)</span></span>`;
+    `<span style="color:var(--muted);font-size:11px">(${routeHighwayLabel(route)} ${totalDistance(route)}km)</span></span>`;
 
   const dateInput = document.getElementById('deptDate');
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1028,6 +1050,15 @@ function initDateScreen() {
 
 function totalDistance(route) {
   return route.reduce((s, n) => s + n.distToNext, 0);
+}
+
+/* ルートが通る高速道路名を順番通りに重複なく連結 (例: '常磐道 (E6) → 東京外環 (C3) → 関越道 (E17)') */
+function routeHighwayLabel(route) {
+  const seq = [];
+  route.forEach(n => {
+    if (seq.length === 0 || seq[seq.length - 1] !== n.highwayName) seq.push(n.highwayName);
+  });
+  return seq.join(' → ');
 }
 
 function renderQuickDates() {
@@ -1093,7 +1124,7 @@ function showResult() {
       (route.length > 2 ? `<span style="color:var(--muted);font-size:12px">経由${route.length - 2}地点</span><span class="arrow">→</span>` : '') +
       `<span class="ic">${route[route.length-1].name}</span>` +
     `</div>` +
-    `<div class="meta">${route[0].highwayName} ｜ 全長 約${totalKm}km ｜ ${dateLabel}</div>`;
+    `<div class="meta">${routeHighwayLabel(route)} ｜ 全長 約${totalKm}km ｜ ${dateLabel}</div>`;
 
   document.getElementById('deptHourSlider').value = state.deptHour;
   updateDeptHourDisplay();

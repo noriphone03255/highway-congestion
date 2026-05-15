@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>高速道路 渋滞予測</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<title>高速道路 渋滞ヒートマップ</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -17,6 +16,7 @@
     --muted: #94a3b8;
     --border: #334155;
     --green: #22c55e;
+    --lime: #84cc16;
     --yellow: #facc15;
     --orange: #f97316;
     --red: #ef4444;
@@ -31,196 +31,226 @@
 
   .header {
     background: linear-gradient(180deg, #1e3a5f 0%, var(--bg) 100%);
-    padding: 52px 20px 24px;
+    padding: 48px 20px 20px;
     text-align: center;
   }
-  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.02em; color: var(--text); }
-  .header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .header h1 { font-size: 21px; font-weight: 700; }
+  .header p { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
-  .steps { display: flex; justify-content: center; gap: 6px; padding: 0 20px 20px; }
+  .steps { display: flex; justify-content: center; gap: 6px; padding: 0 20px 16px; }
   .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all .3s; }
   .step-dot.active { background: var(--accent); width: 24px; border-radius: 4px; }
   .step-dot.done { background: var(--accent2); }
 
-  .container { max-width: 430px; margin: 0 auto; padding: 0 16px; }
+  .container { max-width: 430px; margin: 0 auto; padding: 0 14px; }
+
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
   .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 14px; overflow: hidden; }
-  .card-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 14px 16px 8px; }
+  .card-body { padding: 0 16px 16px; }
 
-  .select-list { list-style: none; }
-  .select-list li { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .15s; font-size: 16px; }
-  .select-list li:last-child { border-bottom: none; }
-  .select-list li:hover { background: var(--card2); }
-  .select-list li .chevron { color: var(--muted); font-size: 14px; }
-
-  .ic-grid { display: flex; flex-direction: column; gap: 0; }
-  .ic-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .15s; }
-  .ic-item:last-child { border-bottom: none; }
-  .ic-item:hover { background: var(--card2); }
-  .ic-item.selected { background: rgba(56,189,248,.12); }
-  .ic-item.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
-  .ic-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; border: 2px solid var(--muted); background: transparent; }
-  .ic-item.selected .ic-dot { background: var(--accent); border-color: var(--accent); }
-  .ic-name { font-size: 15px; flex: 1; }
-  .ic-dist { font-size: 12px; color: var(--muted); }
-
-  .datetime-row { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-  .dt-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-  .dt-input { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 16px; width: 100%; outline: none; -webkit-appearance: none; }
-  .dt-input:focus { border-color: var(--accent); }
-
-  .hour-slider-wrap { padding: 0 16px 16px; }
-  .hour-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-  .hour-display { font-size: 36px; font-weight: 300; color: var(--accent); letter-spacing: -1px; text-align: center; margin-bottom: 8px; }
-  input[type=range] { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(56,189,248,.2); }
-
-  .btn-primary { width: 100%; padding: 16px; border-radius: var(--radius); background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0f172a; font-size: 17px; font-weight: 700; border: none; cursor: pointer; letter-spacing: 0.01em; transition: opacity .2s, transform .1s; margin-bottom: 14px; }
+  .btn-back { display: flex; align-items: center; gap: 6px; color: var(--accent); font-size: 14px; background: none; border: none; cursor: pointer; padding: 0 0 12px; }
+  .btn-primary { width: 100%; padding: 15px; border-radius: var(--radius); background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0f172a; font-size: 16px; font-weight: 700; border: none; cursor: pointer; transition: opacity .2s, transform .1s; }
   .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .btn-back { display: flex; align-items: center; gap: 6px; color: var(--accent); font-size: 15px; background: none; border: none; cursor: pointer; padding: 0 0 16px; }
+  /* Autocomplete */
+  .search-wrap { padding: 14px 16px; }
+  .search-input {
+    width: 100%; background: var(--card2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; color: var(--text); font-size: 16px; outline: none;
+    -webkit-appearance: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .suggestions { max-height: 360px; overflow-y: auto; border-top: 1px solid var(--border); }
+  .suggestion {
+    padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer;
+    transition: background .15s; display: flex; align-items: center; justify-content: space-between;
+  }
+  .suggestion:last-child { border-bottom: none; }
+  .suggestion:hover, .suggestion.active { background: var(--card2); }
+  .suggestion .ic-name { font-size: 15px; }
+  .suggestion .ic-name mark { background: rgba(56,189,248,.3); color: var(--accent); padding: 0 2px; border-radius: 2px; }
+  .suggestion .ic-hw { font-size: 11px; color: var(--muted); }
+  .suggestion.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+  .empty-msg { padding: 20px 16px; color: var(--muted); font-size: 13px; text-align: center; }
 
-  .summary-banner { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .summary-banner .tag { background: rgba(56,189,248,.15); border: 1px solid rgba(56,189,248,.3); border-radius: 8px; padding: 4px 10px; font-size: 13px; color: var(--accent); }
+  /* Selected IC badge */
+  .selected-badge {
+    background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.3); border-radius: 10px;
+    padding: 10px 12px; margin: 0 16px 12px; font-size: 13px; color: var(--accent);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .selected-badge .clear { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; padding: 0 4px; }
 
-  .ic-pass-list { display: flex; flex-direction: column; gap: 0; }
-  .ic-pass-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); position: relative; }
-  .ic-pass-item:last-child { border-bottom: none; }
-  .ic-pass-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
-  .ic-pass-info { flex: 1; }
-  .ic-pass-name { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
-  .ic-pass-time { font-size: 12px; color: var(--muted); }
-  .ic-pass-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; text-align: right; }
-  .ic-pass-label { font-size: 11px; color: var(--muted); text-align: right; margin-top: 2px; max-width: 120px; }
+  /* Date selection */
+  .date-wrap { padding: 14px 16px; }
+  .dt-input {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; color: var(--text); font-size: 16px; width: 100%; outline: none;
+    -webkit-appearance: none;
+  }
+  .dt-input:focus { border-color: var(--accent); }
+  .quick-dates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 10px 16px 16px; }
+  .quick-date {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 4px; cursor: pointer; text-align: center; transition: all .15s;
+  }
+  .quick-date.active { background: rgba(56,189,248,.15); border-color: var(--accent); }
+  .quick-date .qd-name { font-size: 10px; color: var(--muted); }
+  .quick-date .qd-date { font-size: 13px; font-weight: 600; margin-top: 2px; }
+  .quick-date .qd-tag { font-size: 9px; color: var(--orange); margin-top: 2px; min-height: 11px; }
+  .date-info { padding: 0 16px 14px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .date-info .badge { display: inline-block; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; font-size: 11px; margin-right: 4px; margin-bottom: 4px; }
+  .date-info .badge.warn { background: rgba(249,115,22,.12); border-color: rgba(249,115,22,.4); color: var(--orange); }
+  .date-info .badge.holiday { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.4); color: var(--red); }
 
-  .chart-wrap { padding: 16px; position: relative; }
-  .chart-wrap canvas { width: 100% !important; }
+  /* Result screen */
+  .summary {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 12px;
+  }
+  .summary .route-line { display: flex; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
+  .summary .route-line .ic { font-weight: 600; }
+  .summary .route-line .arrow { color: var(--muted); }
+  .summary .meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
-  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 12px 16px 16px; }
-  .week-day { display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--card2); border-radius: 10px; padding: 8px 4px; cursor: pointer; transition: background .15s; }
-  .week-day.today { border: 1px solid var(--accent); }
-  .week-day:hover { background: #2d3f56; }
-  .week-day .wd-name { font-size: 10px; color: var(--muted); }
-  .week-day .wd-date { font-size: 14px; font-weight: 600; }
-  .week-day .wd-emoji { font-size: 16px; }
+  .heatmap-wrap { padding: 14px 8px 8px; overflow-x: hidden; }
+  .heatmap-canvas { display: block; max-width: 100%; }
 
-  .cond-list { list-style: none; }
-  .cond-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.5; }
-  .cond-item:last-child { border-bottom: none; }
-  .cond-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 4px 16px 14px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
-  .alert { padding: 14px 16px; border-radius: 12px; font-size: 14px; line-height: 1.5; margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; }
-  .alert.info { background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.25); }
-  .alert.warn { background: rgba(249,115,22,.1); border: 1px solid rgba(249,115,22,.25); }
+  .slider-wrap { padding: 8px 16px 16px; }
+  .slider-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .slider-label .lbl { font-size: 12px; color: var(--muted); }
+  .slider-label .val { font-size: 22px; font-weight: 600; color: var(--accent); letter-spacing: -0.5px; }
+  input[type=range] {
+    width: 100%; -webkit-appearance: none; appearance: none; height: 4px;
+    border-radius: 2px; background: var(--border); outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 0 4px rgba(56,189,248,.2);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: none;
+    box-shadow: 0 0 0 4px rgba(56,189,248,.2);
+  }
 
-  .legend { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 16px; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .recommend {
+    background: linear-gradient(135deg, rgba(34,197,94,.15), rgba(56,189,248,.15));
+    border: 1px solid rgba(34,197,94,.4); border-radius: 12px;
+    padding: 12px 14px; margin: 0 16px 14px; display: flex; align-items: center; gap: 10px;
+    cursor: pointer; transition: all .15s;
+  }
+  .recommend:active { transform: scale(0.99); }
+  .recommend .star { font-size: 22px; }
+  .recommend .info { flex: 1; }
+  .recommend .info .ttl { font-size: 13px; color: var(--text); font-weight: 600; }
+  .recommend .info .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .recommend .arrow { color: var(--accent); font-size: 18px; }
 
-  .screen { display: none; }
-  .screen.active { display: block; }
+  .alerts { padding: 0 16px 14px; }
+  .alert {
+    padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5;
+    margin-bottom: 6px; display: flex; gap: 8px; align-items: flex-start;
+  }
+  .alert.danger { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); }
+  .alert.warn { background: rgba(249,115,22,.1); border: 1px solid rgba(249,115,22,.3); }
+  .alert.ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); }
+  .alert .ic { font-size: 16px; }
 
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  .screen.active { animation: fadeIn .3s ease; }
-
-  .disclaimer { font-size: 11px; color: var(--muted); text-align: center; padding: 8px 16px 0; line-height: 1.6; }
+  .disclaimer { font-size: 10px; color: var(--muted); text-align: center; padding: 10px 16px 0; line-height: 1.6; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>🛣️ 高速道路 渋滞予測</h1>
-  <p>出発前に混雑傾向をチェック</p>
+  <h1>🛣️ 高速道路 渋滞ヒートマップ</h1>
+  <p>ルート × 時間で混雑を一望</p>
 </div>
 
 <div class="steps" id="stepDots"></div>
 
 <div class="container">
 
-  <!-- SCREEN 1: Route -->
-  <div class="screen active" id="screen1">
+  <!-- SCREEN 1: Entry IC -->
+  <div class="screen active" id="screenEntry">
     <div class="card">
-      <div class="card-title">路線を選ぶ</div>
-      <ul class="select-list" id="highwayList"></ul>
-    </div>
-  </div>
-
-  <!-- SCREEN 2: Entry IC -->
-  <div class="screen" id="screen2">
-    <button class="btn-back" onclick="goToScreen(1)">‹ 路線選択に戻る</button>
-    <div class="card">
-      <div class="card-title">乗るIC（入口）を選ぶ</div>
-      <div class="ic-grid" id="entryIcList"></div>
-    </div>
-  </div>
-
-  <!-- SCREEN 3: Exit IC -->
-  <div class="screen" id="screen3">
-    <button class="btn-back" onclick="goToScreen(2)">‹ 入口IC選択に戻る</button>
-    <div class="card">
-      <div class="card-title">降りるIC（出口）を選ぶ</div>
-      <div class="ic-grid" id="exitIcList"></div>
-    </div>
-  </div>
-
-  <!-- SCREEN 4: Date & Time -->
-  <div class="screen" id="screen4">
-    <button class="btn-back" onclick="goToScreen(3)">‹ 出口IC選択に戻る</button>
-    <div class="card">
-      <div class="card-title">出発日・出発時刻を選ぶ</div>
-      <div class="datetime-row">
-        <div>
-          <div class="dt-label">出発日</div>
-          <input type="date" id="deptDate" class="dt-input">
-        </div>
+      <div class="card-title">入口IC（乗るIC）</div>
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="entrySearch" placeholder="例：三郷、東京、八王子…" autocomplete="off">
       </div>
-      <div class="hour-slider-wrap">
-        <div class="hour-label">出発時刻（〇時台）</div>
-        <div class="hour-display" id="hourDisplay">08:00</div>
-        <input type="range" id="hourSlider" min="0" max="23" value="8" oninput="updateHourDisplay()">
-      </div>
+      <div class="suggestions" id="entrySuggestions"></div>
     </div>
-    <button class="btn-primary" onclick="showResult()">予測を見る ›</button>
   </div>
 
-  <!-- SCREEN 5: Result -->
-  <div class="screen" id="screen5">
-    <button class="btn-back" onclick="goToScreen(4)">‹ 条件を変更する</button>
-
-    <div class="summary-banner" id="summaryBanner"></div>
-    <div id="overallAlert"></div>
-
+  <!-- SCREEN 2: Exit IC -->
+  <div class="screen" id="screenExit">
+    <button class="btn-back" onclick="goToScreen('Entry')">‹ 入口ICを変更</button>
+    <div class="selected-badge" id="entryBadge"></div>
     <div class="card">
-      <div class="card-title">IC通過 時間帯の混雑予測</div>
-      <div class="ic-pass-list" id="icPassList"></div>
+      <div class="card-title">出口IC（降りるIC）</div>
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="exitSearch" placeholder="例：水戸、御殿場…" autocomplete="off">
+      </div>
+      <div class="suggestions" id="exitSuggestions"></div>
     </div>
+  </div>
+
+  <!-- SCREEN 3: Date -->
+  <div class="screen" id="screenDate">
+    <button class="btn-back" onclick="goToScreen('Exit')">‹ 出口ICを変更</button>
+    <div class="selected-badge" id="routeBadge"></div>
+    <div class="card">
+      <div class="card-title">出発日</div>
+      <div class="date-wrap">
+        <input type="date" id="deptDate" class="dt-input">
+      </div>
+      <div class="quick-dates" id="quickDates"></div>
+      <div class="date-info" id="dateInfo"></div>
+    </div>
+    <button class="btn-primary" onclick="showResult()">ヒートマップを見る ›</button>
+  </div>
+
+  <!-- SCREEN 4: Result (Heatmap) -->
+  <div class="screen" id="screenResult">
+    <button class="btn-back" onclick="goToScreen('Date')">‹ 条件を変更</button>
+
+    <div class="summary" id="resultSummary"></div>
 
     <div class="card">
-      <div class="card-title">時間帯別 混雑スコア</div>
-      <div class="chart-wrap">
-        <canvas id="congestionChart" height="200"></canvas>
+      <div class="card-title">混雑ヒートマップ（縦：IC × 横：時間）</div>
+      <div class="heatmap-wrap">
+        <canvas id="heatmap" class="heatmap-canvas"></canvas>
       </div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>空いている</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#facc15"></div>やや空き</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>普通〜やや混雑</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>混雑</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>快適</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#84cc16"></div>やや混む</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#facc15"></div>混雑</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>渋滞</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>激渋滞</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fff;border-radius:50%"></div>出発時刻トレース</div>
       </div>
+
+      <div class="slider-wrap">
+        <div class="slider-label">
+          <span class="lbl">出発時刻（白い線が斜めに走る）</span>
+          <span class="val" id="deptHourDisplay">08:00</span>
+        </div>
+        <input type="range" id="deptHourSlider" min="0" max="23" value="8">
+      </div>
+
+      <div class="recommend" id="recommendBox"></div>
+      <div class="alerts" id="alertsBox"></div>
     </div>
 
-    <div class="card">
-      <div class="card-title">週間 混雑傾向カレンダー</div>
-      <div class="week-grid" id="weekCalendar"></div>
-      <p class="disclaimer">同時刻帯・同路線の混雑傾向を表示しています</p><br>
-    </div>
-
-    <div class="card">
-      <div class="card-title">混雑しやすい条件</div>
-      <ul class="cond-list" id="condList"></ul>
-    </div>
-
-    <p class="disclaimer" style="padding-bottom:16px">
+    <p class="disclaimer">
       ※ 本予測は過去の傾向・統計に基づく参考情報です。<br>
       実際の交通状況とは異なる場合があります。
     </p>
@@ -229,60 +259,86 @@
 </div>
 
 <script>
+/* ====================================================================
+ * DATA: 高速道路 / IC・JCT
+ * ================================================================== */
 const HIGHWAYS = [
   { id: 'joban', name: '常磐道 (E6)',
     ics: [
-      { name: '水戸IC', distanceToNext: 30 },
-      { name: '土浦北IC', distanceToNext: 5 },
-      { name: '土浦IC', distanceToNext: 40 },
-      { name: '柏IC', distanceToNext: 10 },
-      { name: '流山IC', distanceToNext: 10 },
-      { name: '三郷JCT', distanceToNext: 0 }
-    ],
-    segmentMultipliers: { '柏IC→流山IC': 1.3, '流山IC→三郷JCT': 1.3 }
+      { name: '水戸IC',     distanceToNext: 30, profile: 'rural_highway' },
+      { name: '土浦北IC',   distanceToNext: 5,  profile: 'rural_highway' },
+      { name: '土浦IC',     distanceToNext: 40, profile: 'metro_outer' },
+      { name: '柏IC',       distanceToNext: 10, profile: 'suburban_commute' },
+      { name: '流山IC',     distanceToNext: 10, profile: 'metro_outer' },
+      { name: '三郷JCT',    distanceToNext: 0,  profile: 'metro_ring' }
+    ]
   },
   { id: 'tomei', name: '東名 (E1)',
     ics: [
-      { name: '御殿場IC', distanceToNext: 40 },
-      { name: '厚木IC', distanceToNext: 20 },
-      { name: '横浜IC', distanceToNext: 20 },
-      { name: '東京IC', distanceToNext: 10 },
-      { name: '用賀IC', distanceToNext: 0 }
-    ],
-    segmentMultipliers: { '横浜IC→東京IC': 1.4, '東京IC→用賀IC': 1.4 }
+      { name: '御殿場IC',   distanceToNext: 40, profile: 'rural_highway' },
+      { name: '厚木IC',     distanceToNext: 20, profile: 'suburban_commute' },
+      { name: '横浜IC',     distanceToNext: 20, profile: 'metro_outer' },
+      { name: '東京IC',     distanceToNext: 10, profile: 'metro_chronic' },
+      { name: '用賀IC',     distanceToNext: 0,  profile: 'urban_highway' }
+    ]
   },
   { id: 'shinotomei', name: '新東名 (E1A)',
     ics: [
-      { name: '浜松いなさJCT', distanceToNext: 50 },
-      { name: '岡崎東IC', distanceToNext: 15 },
-      { name: '豊田東JCT', distanceToNext: 80 },
-      { name: '新清水JCT', distanceToNext: 20 },
-      { name: '新富士IC', distanceToNext: 20 },
-      { name: '御殿場JCT', distanceToNext: 0 }
-    ],
-    segmentMultipliers: {}
+      { name: '浜松いなさJCT', distanceToNext: 50, profile: 'rural_highway' },
+      { name: '岡崎東IC',     distanceToNext: 15, profile: 'rural_highway' },
+      { name: '豊田東JCT',    distanceToNext: 80, profile: 'suburban_commute' },
+      { name: '新清水JCT',    distanceToNext: 20, profile: 'rural_highway' },
+      { name: '新富士IC',     distanceToNext: 20, profile: 'rural_highway' },
+      { name: '御殿場JCT',    distanceToNext: 0,  profile: 'rural_highway' }
+    ]
   },
   { id: 'chuo', name: '中央道 (E20)',
     ics: [
-      { name: '甲府IC', distanceToNext: 35 },
-      { name: '大月IC', distanceToNext: 40 },
-      { name: '八王子IC', distanceToNext: 25 },
-      { name: '調布IC', distanceToNext: 8 },
-      { name: '高井戸IC', distanceToNext: 0 }
-    ],
-    segmentMultipliers: { '八王子IC→調布IC': 1.2, '調布IC→高井戸IC': 1.2 }
+      { name: '甲府IC',     distanceToNext: 35, profile: 'rural_highway' },
+      { name: '大月IC',     distanceToNext: 40, profile: 'rural_highway' },
+      { name: '八王子IC',   distanceToNext: 25, profile: 'suburban_commute' },
+      { name: '調布IC',     distanceToNext: 8,  profile: 'metro_outer' },
+      { name: '高井戸IC',   distanceToNext: 0,  profile: 'urban_highway' }
+    ]
   },
   { id: 'kanetsu', name: '関越道 (E17)',
     ics: [
-      { name: '湯沢IC', distanceToNext: 80 },
-      { name: '本庄児玉IC', distanceToNext: 30 },
-      { name: '鶴ヶ島JCT', distanceToNext: 10 },
-      { name: '所沢IC', distanceToNext: 15 },
-      { name: '練馬IC', distanceToNext: 0 }
-    ],
-    segmentMultipliers: {}
+      { name: '湯沢IC',     distanceToNext: 80, profile: 'rural_highway' },
+      { name: '本庄児玉IC', distanceToNext: 30, profile: 'rural_highway' },
+      { name: '鶴ヶ島JCT',  distanceToNext: 10, profile: 'suburban_commute' },
+      { name: '所沢IC',     distanceToNext: 15, profile: 'metro_outer' },
+      { name: '練馬IC',     distanceToNext: 0,  profile: 'metro_chronic' }
+    ]
   }
 ];
+
+/* 6種類の混雑プロファイル: 時間帯別の混雑乗数 (0..5 を意識) */
+const PROFILES = {
+  suburban_commute: { /* 郊外通勤: 朝夕ラッシュ強 */
+    label: '郊外通勤型',
+    hourMult: [0.3,0.2,0.2,0.2,0.3,0.6,1.4,2.6,3.0,2.1,1.0,0.8,0.8,0.9,1.0,1.2,1.8,2.8,3.0,2.3,1.5,1.0,0.7,0.4]
+  },
+  metro_chronic: { /* 都心慢性: 終日詰まる */
+    label: '都心慢性型',
+    hourMult: [0.5,0.4,0.3,0.3,0.4,0.7,1.5,2.5,3.0,2.8,2.4,2.4,2.5,2.5,2.5,2.5,2.7,3.0,3.0,2.7,2.0,1.5,1.0,0.7]
+  },
+  metro_ring: { /* 首都圏環状: 朝夕極大 */
+    label: '首都圏環状型',
+    hourMult: [0.4,0.3,0.3,0.3,0.4,0.6,1.6,3.0,3.5,3.0,2.0,1.5,1.5,1.5,1.5,1.7,2.0,3.0,3.5,2.8,2.0,1.3,0.8,0.5]
+  },
+  metro_outer: { /* 首都圏外縁 */
+    label: '首都圏外縁型',
+    hourMult: [0.3,0.2,0.2,0.2,0.3,0.5,1.2,2.2,2.5,1.8,1.0,0.8,0.7,0.8,0.9,1.1,1.6,2.4,2.6,2.0,1.3,0.9,0.6,0.4]
+  },
+  urban_highway: { /* 都市高速 */
+    label: '都市高速型',
+    hourMult: [0.6,0.5,0.4,0.4,0.5,0.8,1.7,2.7,3.0,2.5,2.0,2.0,2.0,2.0,2.0,2.2,2.5,2.8,2.8,2.5,2.0,1.5,1.0,0.7]
+  },
+  rural_highway: { /* 地方路線 */
+    label: '地方路線型',
+    hourMult: [0.2,0.1,0.1,0.1,0.2,0.3,0.5,0.8,1.0,0.9,0.8,0.8,0.9,1.0,1.0,0.9,0.9,1.1,1.0,0.8,0.6,0.4,0.3,0.2]
+  }
+};
 
 const HOLIDAYS = new Set([
   '2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20',
@@ -293,306 +349,603 @@ const HOLIDAYS = new Set([
 
 const DOW_NAMES = ['日','月','火','水','木','金','土'];
 
-let state = { highway: null, entryIdx: null, exitIdx: null, date: null, hour: 8, currentScreen: 1 };
-let chartInstance = null;
+const BASE_SPEED_KMH = 80;
 
-function getCongestionScore(date, hour, multiplier = 1.0) {
-  let s = 0;
-  const dow = date.getDay(), dom = date.getDate(), month = date.getMonth() + 1;
+/* ====================================================================
+ * GRAPH BUILD: フラットIC配列 + 隣接マップ (BFS用)
+ * ================================================================== */
+const IC_NODES = []; // { id, name, highwayId, highwayName, profile, idx }
+const IC_GRAPH = new Map(); // id -> [{ neighborId, distance }]
+const IC_BY_ID = new Map();
+
+HIGHWAYS.forEach(hw => {
+  hw.ics.forEach((ic, i) => {
+    const id = `${hw.id}:${i}`;
+    const node = { id, name: ic.name, highwayId: hw.id, highwayName: hw.name, profile: ic.profile, idx: i };
+    IC_NODES.push(node);
+    IC_BY_ID.set(id, node);
+    IC_GRAPH.set(id, []);
+  });
+  for (let i = 0; i < hw.ics.length - 1; i++) {
+    const a = `${hw.id}:${i}`;
+    const b = `${hw.id}:${i+1}`;
+    const d = hw.ics[i].distanceToNext;
+    IC_GRAPH.get(a).push({ neighborId: b, distance: d });
+    IC_GRAPH.get(b).push({ neighborId: a, distance: d });
+  }
+});
+
+/* BFS: from→to の最短経路を [{node, distToNext}] で返す。到達不能ならnull */
+function bfsRoute(fromId, toId) {
+  if (fromId === toId) return null;
+  const prev = new Map(); // id -> { from, dist }
+  prev.set(fromId, { from: null, dist: 0 });
+  const q = [fromId];
+  while (q.length) {
+    const cur = q.shift();
+    if (cur === toId) break;
+    for (const { neighborId, distance } of IC_GRAPH.get(cur)) {
+      if (!prev.has(neighborId)) {
+        prev.set(neighborId, { from: cur, dist: distance });
+        q.push(neighborId);
+      }
+    }
+  }
+  if (!prev.has(toId)) return null;
+  const path = [];
+  let cur = toId;
+  while (cur !== null) {
+    path.unshift(cur);
+    cur = prev.get(cur).from;
+  }
+  return path.map((id, i) => {
+    const node = IC_BY_ID.get(id);
+    const distToNext = i < path.length - 1 ? prev.get(path[i+1]).dist : 0;
+    return { ...node, distToNext };
+  });
+}
+
+/* fromIdから到達可能なIC IDセット (BFS) */
+function reachableFrom(fromId) {
+  const visited = new Set([fromId]);
+  const q = [fromId];
+  while (q.length) {
+    const cur = q.shift();
+    for (const { neighborId } of IC_GRAPH.get(cur)) {
+      if (!visited.has(neighborId)) { visited.add(neighborId); q.push(neighborId); }
+    }
+  }
+  visited.delete(fromId);
+  return visited;
+}
+
+/* ====================================================================
+ * CONGESTION: profile + 日付要因
+ * ================================================================== */
+function dateKey(d) { return d.toISOString().slice(0,10); }
+
+function getDateFactors(date) {
+  const dow = date.getDay();
+  const dom = date.getDate();
+  const month = date.getMonth() + 1;
   const lastDay = new Date(date.getFullYear(), month, 0).getDate();
-  const key = d => d.toISOString().slice(0, 10);
-  const isHol = d => HOLIDAYS.has(key(d));
-  const addD = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+  const tomorrow = new Date(date); tomorrow.setDate(date.getDate() + 1);
 
-  if ([5,10,15,20,25].includes(dom) || dom === lastDay) s += 1.5;
-  if (dow === 5) s += 1.2;
-  if (dow === 1) s += 0.6;
-  if (dow === 0 || dow === 6) s += 0.4;
-  if (isHol(date)) s += 0.8;
-  if (isHol(addD(date, 1))) s += 1.5;
-  if ((month === 4 && dom >= 29) || (month === 5 && dom <= 6)) s += 2.5;
-  if (month === 8 && dom >= 10 && dom <= 18) s += 2.0;
-  if ((month === 12 && dom >= 28) || (month === 1 && dom <= 3)) s += 2.0;
-  if (hour >= 0 && hour <= 4) s -= 2.5;
-  else if (hour >= 7 && hour <= 9) s += 2.2;
-  else if (hour >= 17 && hour <= 20) s += 2.5;
-  else if (hour >= 13 && hour <= 16) s += 0.5;
-  else if (hour >= 21) s -= 0.5;
-  if (dow === 1 && hour >= 7 && hour <= 10) s += 0.8;
-  if (dow === 5 && hour >= 17 && hour <= 20) s += 0.8;
+  const factors = [];
+  let mult = 1.0;
 
-  return Math.max(0, Math.min(5, s * multiplier));
+  if ([5,10,15,20,25].includes(dom) || dom === lastDay) { mult *= 1.2; factors.push({ key: 'gotoubi', label: '5・10日（ごとおび）', warn: true }); }
+  if (dow === 5) { mult *= 1.15; factors.push({ key: 'fri', label: '金曜', warn: true }); }
+  if (dow === 1) { mult *= 1.05; factors.push({ key: 'mon', label: '月曜' }); }
+  if (dow === 0) { mult *= 1.10; factors.push({ key: 'sun', label: '日曜' }); }
+  if (dow === 6) { mult *= 1.10; factors.push({ key: 'sat', label: '土曜' }); }
+  if (HOLIDAYS.has(dateKey(date))) { mult *= 1.20; factors.push({ key: 'hol', label: '祝日', holiday: true }); }
+  if (HOLIDAYS.has(dateKey(tomorrow))) { mult *= 1.25; factors.push({ key: 'preHol', label: '祝日前日', warn: true }); }
+  if ((month === 4 && dom >= 29) || (month === 5 && dom <= 6)) { mult *= 1.6; factors.push({ key: 'gw', label: 'GW期間', warn: true }); }
+  if (month === 8 && dom >= 10 && dom <= 18) { mult *= 1.5; factors.push({ key: 'obon', label: 'お盆期間', warn: true }); }
+  if ((month === 12 && dom >= 28) || (month === 1 && dom <= 3)) { mult *= 1.5; factors.push({ key: 'nyear', label: '年末年始', warn: true }); }
+
+  return { mult, factors };
 }
 
-function scoreToInfo(score) {
-  if (score < 1.0) return { emoji: '🟢', label: '空いている',   desc: '快適に通過できる可能性が高い',           color: '#22c55e', bg: 'rgba(34,197,94,.15)' };
-  if (score < 2.0) return { emoji: '🟡', label: 'やや空き',     desc: '比較的スムーズな可能性が高い',           color: '#facc15', bg: 'rgba(250,204,21,.15)' };
-  if (score < 3.0) return { emoji: '🟠', label: '普通',         desc: '多少の混雑が見られる傾向があります',     color: '#f97316', bg: 'rgba(249,115,22,.15)' };
-  if (score < 4.0) return { emoji: '🟠', label: 'やや混雑',     desc: '混雑しやすい傾向があります',             color: '#f97316', bg: 'rgba(249,115,22,.2)' };
-  return             { emoji: '🔴', label: '混雑',          desc: '渋滞が発生しやすい時間帯です',           color: '#ef4444', bg: 'rgba(239,68,68,.15)' };
+function getCongestion(date, hour, profileName, dateMult) {
+  const p = PROFILES[profileName];
+  const base = p.hourMult[Math.floor(hour) % 24];
+  return Math.min(5, base * dateMult);
 }
 
-function goToScreen(n) {
-  document.querySelectorAll('.screen').forEach((s, i) => s.classList.toggle('active', i + 1 === n));
-  state.currentScreen = n;
+function scoreToColor(s) {
+  if (s < 1.0) return '#22c55e';
+  if (s < 1.8) return '#84cc16';
+  if (s < 2.5) return '#facc15';
+  if (s < 3.5) return '#f97316';
+  return '#ef4444';
+}
+
+function scoreToLabel(s) {
+  if (s < 1.0) return '快適';
+  if (s < 1.8) return 'やや混む';
+  if (s < 2.5) return '混雑';
+  if (s < 3.5) return '渋滞';
+  return '激渋滞';
+}
+
+/* ====================================================================
+ * STATE
+ * ================================================================== */
+const state = {
+  entryId: null,
+  exitId: null,
+  route: null,        // [{ ...node, distToNext }]
+  date: null,
+  deptHour: 8,
+  currentScreen: 'Entry'
+};
+
+/* ====================================================================
+ * NAVIGATION
+ * ================================================================== */
+const SCREENS = ['Entry', 'Exit', 'Date', 'Result'];
+
+function goToScreen(name) {
+  SCREENS.forEach(n => {
+    document.getElementById('screen' + n).classList.toggle('active', n === name);
+  });
+  state.currentScreen = name;
   updateStepDots();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (name === 'Exit') initExitScreen();
+  if (name === 'Date') initDateScreen();
 }
 
 function updateStepDots() {
+  const idx = SCREENS.indexOf(state.currentScreen);
   const dots = document.getElementById('stepDots');
   dots.innerHTML = '';
-  for (let i = 1; i <= 5; i++) {
+  SCREENS.forEach((_, i) => {
     const d = document.createElement('div');
-    d.className = 'step-dot' + (i === state.currentScreen ? ' active' : i < state.currentScreen ? ' done' : '');
+    d.className = 'step-dot' + (i === idx ? ' active' : i < idx ? ' done' : '');
     dots.appendChild(d);
-  }
-}
-
-function initHighwayList() {
-  const ul = document.getElementById('highwayList');
-  HIGHWAYS.forEach(hw => {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>${hw.name}</span><span class="chevron">›</span>`;
-    li.onclick = () => { state.highway = hw; state.entryIdx = null; state.exitIdx = null; renderEntryIcList(); goToScreen(2); };
-    ul.appendChild(li);
   });
 }
 
-function renderEntryIcList() {
-  const hw = state.highway;
-  const container = document.getElementById('entryIcList');
+/* ====================================================================
+ * AUTOCOMPLETE
+ * ================================================================== */
+function normalizeQuery(q) {
+  return q.trim()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .toLowerCase();
+}
+
+function matchIC(node, q) {
+  if (!q) return true;
+  const name = node.name.toLowerCase();
+  const hw = node.highwayName.toLowerCase();
+  return name.includes(q) || hw.includes(q);
+}
+
+function highlightMatch(text, q) {
+  if (!q) return text;
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(q);
+  if (idx < 0) return text;
+  return text.slice(0, idx) + '<mark>' + text.slice(idx, idx + q.length) + '</mark>' + text.slice(idx + q.length);
+}
+
+function renderSuggestions(containerId, query, candidateNodes, onSelect, disabledSet) {
+  const container = document.getElementById(containerId);
   container.innerHTML = '';
-  hw.ics.forEach((ic, i) => {
-    if (i === hw.ics.length - 1) return;
-    const div = document.createElement('div');
-    div.className = 'ic-item' + (i === state.entryIdx ? ' selected' : '');
-    div.innerHTML = `<div class="ic-dot"></div><div class="ic-name">${ic.name}</div><div class="ic-dist">${ic.distanceToNext > 0 ? ic.distanceToNext + 'km →' : ''}</div>`;
-    div.onclick = () => { state.entryIdx = i; state.exitIdx = null; renderExitIcList(); goToScreen(3); };
-    container.appendChild(div);
-  });
-}
-
-function renderExitIcList() {
-  const hw = state.highway;
-  const container = document.getElementById('exitIcList');
-  container.innerHTML = '';
-  hw.ics.forEach((ic, i) => {
-    const div = document.createElement('div');
-    div.className = 'ic-item' + (i <= state.entryIdx ? ' disabled' : '') + (i === state.exitIdx ? ' selected' : '');
-    div.innerHTML = `<div class="ic-dot"></div><div class="ic-name">${ic.name}</div><div class="ic-dist">${i === state.entryIdx ? '入口' : ''}</div>`;
-    if (i > state.entryIdx) {
-      div.onclick = () => {
-        state.exitIdx = i;
-        container.querySelectorAll('.ic-item').forEach((el, j) => el.classList.toggle('selected', j === i));
-        setTimeout(() => goToScreen(4), 150);
-      };
-    }
-    container.appendChild(div);
-  });
-}
-
-function initDateScreen() {
-  const dateInput = document.getElementById('deptDate');
-  const today = new Date();
-  const fmt = d => d.toISOString().slice(0, 10);
-  dateInput.min = fmt(today);
-  const maxDate = new Date(today); maxDate.setDate(today.getDate() + 90);
-  dateInput.max = fmt(maxDate);
-  if (!state.date) { dateInput.value = fmt(today); state.date = today; }
-  else dateInput.value = fmt(state.date);
-  dateInput.addEventListener('change', e => { state.date = new Date(e.target.value + 'T00:00:00'); });
-  document.getElementById('hourSlider').value = state.hour;
-  updateHourDisplay();
-}
-
-function updateHourDisplay() {
-  const h = parseInt(document.getElementById('hourSlider').value);
-  state.hour = h;
-  document.getElementById('hourDisplay').textContent = String(h).padStart(2,'0') + ':00';
-}
-
-function calcPassingTimes(highway, entryIdx, exitIdx, deptHour) {
-  let mins = 0;
-  const result = [];
-  for (let i = entryIdx; i <= exitIdx; i++) {
-    const hour = (deptHour + Math.floor(mins / 60)) % 24;
-    result.push({ ic: highway.ics[i].name, hour });
-    if (i < exitIdx) mins += (highway.ics[i].distanceToNext / 100) * 60;
+  const q = normalizeQuery(query);
+  const matched = candidateNodes.filter(n => matchIC(n, q)).slice(0, 30);
+  if (matched.length === 0) {
+    container.innerHTML = '<div class="empty-msg">該当するICが見つかりません</div>';
+    return;
   }
-  return result;
-}
-
-function getSegmentMultiplier(highway, fromIcName, toIcName) {
-  return highway.segmentMultipliers[fromIcName + '→' + toIcName] || 1.0;
-}
-
-function showResult() {
-  const hw = state.highway;
-  const dateStr = document.getElementById('deptDate').value;
-  state.date = new Date(dateStr + 'T00:00:00');
-  state.hour = parseInt(document.getElementById('hourSlider').value);
-
-  const entryName = hw.ics[state.entryIdx].name;
-  const exitName  = hw.ics[state.exitIdx].name;
-  const dateLabel = state.date.toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
-
-  document.getElementById('summaryBanner').innerHTML =
-    `<span class="tag">${hw.name}</span><span class="tag">${entryName} → ${exitName}</span><span class="tag">${dateLabel} ${String(state.hour).padStart(2,'0')}:00 出発</span>`;
-
-  const passings = calcPassingTimes(hw, state.entryIdx, state.exitIdx, state.hour);
-  const scores = passings.map((p, idx) => {
-    const mult = idx > 0 ? getSegmentMultiplier(hw, passings[idx-1].ic, p.ic) : 1.0;
-    return getCongestionScore(state.date, p.hour, mult);
-  });
-
-  const maxScore = Math.max(...scores);
-  const overallInfo = scoreToInfo(maxScore);
-  document.getElementById('overallAlert').innerHTML =
-    `<div class="alert ${maxScore >= 3.5 ? 'warn' : 'info'}">
-      <span style="font-size:20px">${overallInfo.emoji}</span>
-      <div><strong>${overallInfo.label}</strong><br>
-      <span style="color:var(--muted);font-size:13px">この時間帯は${overallInfo.desc}</span></div>
-    </div>`;
-
-  const icList = document.getElementById('icPassList');
-  icList.innerHTML = '';
-  passings.forEach((p, idx) => {
-    const sc = scores[idx];
-    const info = scoreToInfo(sc);
+  matched.forEach(node => {
     const div = document.createElement('div');
-    div.className = 'ic-pass-item';
+    const disabled = disabledSet && disabledSet.has(node.id);
+    div.className = 'suggestion' + (disabled ? ' disabled' : '');
     div.innerHTML =
-      `<div class="ic-pass-dot" style="background:${info.color}"></div>
-       <div class="ic-pass-info">
-         <div class="ic-pass-name">${p.ic}</div>
-         <div class="ic-pass-time">通過予測: ${String(p.hour).padStart(2,'0')}時台</div>
-       </div>
-       <div style="text-align:right">
-         <div class="ic-pass-badge" style="background:${info.bg};color:${info.color}">${info.emoji} ${info.label}</div>
-         <div class="ic-pass-label">${info.desc}</div>
-       </div>`;
-    icList.appendChild(div);
-  });
-
-  renderChart(passings, scores);
-  renderWeekCalendar();
-  renderConditions();
-  goToScreen(5);
-}
-
-function renderChart(passings, icScores) {
-  const hours = Array.from({length: 24}, (_, i) => i);
-  const date = state.date;
-  const avgMult = icScores.length > 1
-    ? icScores.slice(1).reduce((a, _, i) => a + getSegmentMultiplier(state.highway, passings[i].ic, passings[i+1].ic), 0) / (icScores.length - 1)
-    : 1.0;
-
-  const chartData = hours.map(h => getCongestionScore(date, h, avgMult));
-  const barColors = chartData.map(s =>
-    s < 1.0 ? 'rgba(34,197,94,0.75)' :
-    s < 2.0 ? 'rgba(250,204,21,0.75)' :
-    s < 3.5 ? 'rgba(249,115,22,0.75)' :
-              'rgba(239,68,68,0.8)'
-  );
-
-  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-
-  const ctx = document.getElementById('congestionChart').getContext('2d');
-  chartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: hours.map(h => String(h).padStart(2,'0') + '時'),
-      datasets: [{ label: '混雑スコア', data: chartData, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: { label: ctx => { const info = scoreToInfo(ctx.parsed.y); return ' ' + info.emoji + ' ' + info.label + ' (' + ctx.parsed.y.toFixed(1) + ')'; } },
-          backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
-          titleColor: '#94a3b8', bodyColor: '#f1f5f9'
-        }
-      },
-      scales: {
-        x: { grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 12, callback: (val, idx) => idx % 3 === 0 ? String(idx).padStart(2,'0') : '' } },
-        y: { min: 0, max: 5, grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { color: '#64748b', font: { size: 10 }, stepSize: 1 } }
-      }
-    },
-    plugins: [{
-      id: 'icMarkers',
-      afterDraw(chart) {
-        const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
-        passings.forEach((p, idx) => {
-          const xPos = x.getPixelForValue(p.hour);
-          ctx.save();
-          ctx.strokeStyle = 'rgba(56,189,248,0.85)';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([4, 3]);
-          ctx.beginPath(); ctx.moveTo(xPos, top); ctx.lineTo(xPos, bottom); ctx.stroke();
-          ctx.restore();
-          ctx.save();
-          ctx.fillStyle = '#38bdf8';
-          ctx.font = 'bold 9px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(p.ic.replace(/(IC|JCT)$/, ''), xPos, top - 4);
-          ctx.restore();
-        });
-      }
-    }]
+      `<div class="ic-name">${highlightMatch(node.name, q)}</div>` +
+      `<div class="ic-hw">${node.highwayName}</div>`;
+    if (!disabled) div.onclick = () => onSelect(node);
+    container.appendChild(div);
   });
 }
 
-function renderWeekCalendar() {
-  const container = document.getElementById('weekCalendar');
+/* ====================================================================
+ * SCREEN: Entry IC
+ * ================================================================== */
+function initEntryScreen() {
+  const input = document.getElementById('entrySearch');
+  input.value = '';
+  const refresh = () => {
+    renderSuggestions('entrySuggestions', input.value, IC_NODES, node => {
+      state.entryId = node.id;
+      state.exitId = null;
+      state.route = null;
+      goToScreen('Exit');
+    });
+  };
+  input.oninput = refresh;
+  refresh();
+}
+
+/* ====================================================================
+ * SCREEN: Exit IC
+ * ================================================================== */
+function initExitScreen() {
+  const entry = IC_BY_ID.get(state.entryId);
+  document.getElementById('entryBadge').innerHTML =
+    `<span>入口: <strong>${entry.name}</strong> <span style="color:var(--muted);font-size:11px">(${entry.highwayName})</span></span>`;
+
+  const reachable = reachableFrom(state.entryId);
+  const candidates = IC_NODES.filter(n => reachable.has(n.id));
+  const input = document.getElementById('exitSearch');
+  input.value = '';
+  const refresh = () => {
+    renderSuggestions('exitSuggestions', input.value, candidates, node => {
+      state.exitId = node.id;
+      state.route = bfsRoute(state.entryId, state.exitId);
+      goToScreen('Date');
+    });
+  };
+  input.oninput = refresh;
+  refresh();
+}
+
+/* ====================================================================
+ * SCREEN: Date
+ * ================================================================== */
+function initDateScreen() {
+  const route = state.route;
+  document.getElementById('routeBadge').innerHTML =
+    `<span><strong>${route[0].name}</strong> → <strong>${route[route.length-1].name}</strong> ` +
+    `<span style="color:var(--muted);font-size:11px">(${route[0].highwayName} ${totalDistance(route)}km)</span></span>`;
+
+  const dateInput = document.getElementById('deptDate');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const fmt = d => d.toISOString().slice(0,10);
+  dateInput.min = fmt(today);
+  const max = new Date(today); max.setDate(today.getDate() + 90);
+  dateInput.max = fmt(max);
+  if (!state.date) state.date = today;
+  dateInput.value = fmt(state.date);
+  dateInput.onchange = e => {
+    state.date = new Date(e.target.value + 'T00:00:00');
+    renderQuickDates();
+    renderDateInfo();
+  };
+
+  renderQuickDates();
+  renderDateInfo();
+}
+
+function totalDistance(route) {
+  return route.reduce((s, n) => s + n.distToNext, 0);
+}
+
+function renderQuickDates() {
+  const container = document.getElementById('quickDates');
   container.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
-  for (let i = 0; i < 7; i++) {
+  const selected = state.date ? state.date.toISOString().slice(0,10) : '';
+  for (let i = 0; i < 8; i++) {
     const d = new Date(today); d.setDate(today.getDate() + i);
-    const sc = getCongestionScore(d, state.hour, 1.0);
-    const info = scoreToInfo(sc);
+    const key = d.toISOString().slice(0,10);
+    const dow = d.getDay();
+    const factors = getDateFactors(d).factors;
+    const tag = factors.find(f => f.warn || f.holiday);
     const div = document.createElement('div');
-    div.className = 'week-day' + (i === 0 ? ' today' : '');
+    div.className = 'quick-date' + (key === selected ? ' active' : '');
     div.innerHTML =
-      `<div class="wd-name">${DOW_NAMES[d.getDay()]}</div>
-       <div class="wd-date" style="color:${i===0?'var(--accent)':''}">${d.getDate()}</div>
-       <div class="wd-emoji">${info.emoji}</div>`;
+      `<div class="qd-name" style="${dow===0?'color:#ef4444':dow===6?'color:#38bdf8':''}">${DOW_NAMES[dow]}</div>` +
+      `<div class="qd-date">${d.getDate()}</div>` +
+      `<div class="qd-tag">${tag ? (tag.holiday ? '祝' : tag.label.slice(0,2)) : ''}</div>`;
     div.onclick = () => {
       state.date = new Date(d);
-      document.getElementById('deptDate').value = d.toISOString().slice(0,10);
-      showResult();
+      document.getElementById('deptDate').value = key;
+      renderQuickDates();
+      renderDateInfo();
     };
     container.appendChild(div);
   }
 }
 
-function renderConditions() {
-  const ul = document.getElementById('condList');
-  ul.innerHTML = '';
-  const conditions = [
-    { icon: '🎌', text: '祝日前日の夕方以降は混雑が発生しやすい傾向があります' },
-    { icon: '🌸', text: 'GW（4月末〜5月上旬）は特に上下線とも渋滞しやすい時期です' },
-    { icon: '🌊', text: 'お盆期間（8月10〜18日頃）は帰省ラッシュで混雑しやすくなります' },
-    { icon: '🎍', text: '年末年始（12月28日〜1月3日）は長距離移動が集中しやすい傾向があります' },
-    { icon: '🌅', text: '早朝（0〜4時台）は交通量が少なく、快適に通過できる可能性が高い時間帯です' },
-    { icon: '🌆', text: '夕方ラッシュ（17〜20時台）は都市部への流入が増え、混雑が発生しやすい傾向があります' },
-    { icon: '📅', text: '月曜朝（7〜10時台）は週明けの通勤・業務車両が集中しやすい傾向があります' },
-    { icon: '💳', text: '5・10日（ごとおび）や月末は物流車両が増える傾向があります' },
-  ];
-  conditions.forEach(c => {
-    const li = document.createElement('li');
-    li.className = 'cond-item';
-    li.innerHTML = `<span class="cond-icon">${c.icon}</span><span>${c.text}</span>`;
-    ul.appendChild(li);
+function renderDateInfo() {
+  const info = document.getElementById('dateInfo');
+  if (!state.date) { info.innerHTML = ''; return; }
+  const { factors, mult } = getDateFactors(state.date);
+  const dow = state.date.getDay();
+  const dateLabel = state.date.toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+  let html = `<div style="margin-bottom:6px;color:var(--text);font-size:13px">${dateLabel}</div>`;
+  if (factors.length === 0) {
+    html += `<span class="badge">特定日該当なし（混雑要因 +0%）</span>`;
+  } else {
+    factors.forEach(f => {
+      const cls = f.holiday ? 'badge holiday' : f.warn ? 'badge warn' : 'badge';
+      html += `<span class="${cls}">${f.label}</span>`;
+    });
+    html += `<div style="margin-top:6px">日付要因による混雑乗数: <strong style="color:var(--accent)">×${mult.toFixed(2)}</strong></div>`;
+  }
+  info.innerHTML = html;
+}
+
+/* ====================================================================
+ * SCREEN: Result (Heatmap)
+ * ================================================================== */
+function showResult() {
+  state.date = new Date(document.getElementById('deptDate').value + 'T00:00:00');
+  goToScreen('Result');
+
+  const route = state.route;
+  const totalKm = totalDistance(route);
+  const dateLabel = state.date.toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
+  document.getElementById('resultSummary').innerHTML =
+    `<div class="route-line">` +
+      `<span class="ic">${route[0].name}</span>` +
+      `<span class="arrow">→</span>` +
+      (route.length > 2 ? `<span style="color:var(--muted);font-size:12px">経由${route.length - 2}地点</span><span class="arrow">→</span>` : '') +
+      `<span class="ic">${route[route.length-1].name}</span>` +
+    `</div>` +
+    `<div class="meta">${route[0].highwayName} ｜ 全長 約${totalKm}km ｜ ${dateLabel}</div>`;
+
+  document.getElementById('deptHourSlider').value = state.deptHour;
+  updateDeptHourDisplay();
+
+  document.getElementById('deptHourSlider').oninput = e => {
+    state.deptHour = parseInt(e.target.value);
+    updateDeptHourDisplay();
+    renderHeatmap();
+  };
+
+  renderHeatmap();
+  renderRecommend();
+
+  // Resize observer for responsive canvas
+  if (!window._heatmapResize) {
+    window._heatmapResize = true;
+    window.addEventListener('resize', () => { if (state.currentScreen === 'Result') renderHeatmap(); });
+  }
+}
+
+function updateDeptHourDisplay() {
+  document.getElementById('deptHourDisplay').textContent =
+    String(state.deptHour).padStart(2,'0') + ':00';
+}
+
+/* ====================================================================
+ * HEATMAP RENDERING
+ * ================================================================== */
+function renderHeatmap() {
+  const route = state.route;
+  const date = state.date;
+  if (!route || !date) return;
+
+  const { mult: dateMult } = getDateFactors(date);
+  const canvas = document.getElementById('heatmap');
+  const wrap = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+
+  const cssWidth = Math.min(wrap.clientWidth - 4, 420);
+  const labelWidth = 78;
+  const hourLabelHeight = 22;
+  const cellHeight = 30;
+  const heatWidth = cssWidth - labelWidth - 4;
+  const cellWidth = heatWidth / 24;
+  const cssHeight = hourLabelHeight + cellHeight * route.length + 6;
+
+  canvas.style.width = cssWidth + 'px';
+  canvas.style.height = cssHeight + 'px';
+  canvas.width = Math.round(cssWidth * dpr);
+  canvas.height = Math.round(cssHeight * dpr);
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+  // Hour labels (top)
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let h = 0; h < 24; h += 3) {
+    const x = labelWidth + h * cellWidth + cellWidth / 2;
+    ctx.fillText(String(h).padStart(2,'0'), x, hourLabelHeight / 2);
+  }
+  // Right edge label
+  ctx.fillText('24', labelWidth + 24 * cellWidth, hourLabelHeight / 2);
+
+  // Cells
+  route.forEach((node, i) => {
+    const y = hourLabelHeight + i * cellHeight;
+    // IC label
+    ctx.fillStyle = i === 0 || i === route.length - 1 ? '#f1f5f9' : '#cbd5e1';
+    ctx.font = (i === 0 || i === route.length - 1 ? 'bold ' : '') + '11px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const nameShort = node.name.length > 7 ? node.name.slice(0, 6) + '…' : node.name;
+    ctx.fillText(nameShort, labelWidth - 6, y + cellHeight / 2);
+
+    // Heat cells
+    for (let h = 0; h < 24; h++) {
+      const score = getCongestion(date, h, node.profile, dateMult);
+      ctx.fillStyle = scoreToColor(score);
+      ctx.fillRect(labelWidth + h * cellWidth + 0.5, y + 1, cellWidth - 1, cellHeight - 2);
+    }
+  });
+
+  // Diagonal trace
+  drawDiagonalTrace(ctx, route, state.deptHour, date, dateMult, labelWidth, hourLabelHeight, cellWidth, cellHeight);
+
+  // Update alerts
+  renderAlerts();
+}
+
+/* 出発時刻からの斜め線トレース */
+function tracePoints(route, deptHour) {
+  let cumDist = 0;
+  return route.map((node, i) => {
+    const travelHours = cumDist / BASE_SPEED_KMH;
+    const arrivalHourFloat = deptHour + travelHours;
+    const dayOffset = Math.floor(arrivalHourFloat / 24);
+    const hourInDay = arrivalHourFloat - dayOffset * 24;
+    if (i < route.length - 1) cumDist += node.distToNext;
+    return { i, node, hourInDay, arrivalHourFloat, dayOffset };
   });
 }
 
+function drawDiagonalTrace(ctx, route, deptHour, date, dateMult, labelWidth, hourLabelHeight, cellWidth, cellHeight) {
+  const points = tracePoints(route, deptHour);
+  const xOf = h => labelWidth + h * cellWidth;
+  const yOf = i => hourLabelHeight + i * cellHeight + cellHeight / 2;
+  const rightEdge = labelWidth + 24 * cellWidth;
+  const leftEdge = labelWidth;
+
+  // Line shadow
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  drawTraceLine(ctx, points, xOf, yOf, rightEdge, leftEdge);
+  ctx.restore();
+
+  // Line
+  ctx.save();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  drawTraceLine(ctx, points, xOf, yOf, rightEdge, leftEdge);
+  ctx.restore();
+
+  // Markers
+  points.forEach(p => {
+    const x = xOf(p.hourInDay);
+    const y = yOf(p.i);
+    ctx.save();
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawTraceLine(ctx, points, xOf, yOf, rightEdge, leftEdge) {
+  ctx.beginPath();
+  ctx.moveTo(xOf(points[0].hourInDay), yOf(points[0].i));
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    if (a.dayOffset === b.dayOffset) {
+      ctx.lineTo(xOf(b.hourInDay), yOf(b.i));
+    } else {
+      // Cross midnight: split
+      const aHourGlobal = a.arrivalHourFloat;
+      const bHourGlobal = b.arrivalHourFloat;
+      const boundary = (a.dayOffset + 1) * 24;
+      const frac = (boundary - aHourGlobal) / (bHourGlobal - aHourGlobal);
+      const ay = yOf(a.i);
+      const by = yOf(b.i);
+      const splitY = ay + (by - ay) * frac;
+      ctx.lineTo(rightEdge, splitY);
+      ctx.moveTo(leftEdge, splitY);
+      ctx.lineTo(xOf(b.hourInDay), yOf(b.i));
+    }
+  }
+  ctx.stroke();
+}
+
+/* ====================================================================
+ * RECOMMEND & ALERTS
+ * ================================================================== */
+function calcRouteScore(route, deptHour, date, dateMult) {
+  const points = tracePoints(route, deptHour);
+  let total = 0;
+  let maxScore = 0;
+  let worst = null;
+  points.forEach(p => {
+    const s = getCongestion(date, p.hourInDay, p.node.profile, dateMult);
+    total += s;
+    if (s > maxScore) { maxScore = s; worst = { node: p.node, hour: p.hourInDay, score: s }; }
+  });
+  return { total, maxScore, worst };
+}
+
+function renderRecommend() {
+  const { mult: dateMult } = getDateFactors(state.date);
+  let best = { hour: 0, score: Infinity };
+  for (let h = 0; h < 24; h++) {
+    const { total } = calcRouteScore(state.route, h, state.date, dateMult);
+    if (total < best.score) best = { hour: h, score: total };
+  }
+
+  const box = document.getElementById('recommendBox');
+  box.innerHTML =
+    `<div class="star">✨</div>` +
+    `<div class="info">` +
+      `<div class="ttl">おすすめ出発時刻: ${String(best.hour).padStart(2,'0')}:00</div>` +
+      `<div class="sub">合計スコア最小（タップで適用）</div>` +
+    `</div>` +
+    `<div class="arrow">›</div>`;
+  box.onclick = () => {
+    state.deptHour = best.hour;
+    document.getElementById('deptHourSlider').value = best.hour;
+    updateDeptHourDisplay();
+    renderHeatmap();
+  };
+}
+
+function renderAlerts() {
+  const { mult: dateMult } = getDateFactors(state.date);
+  const points = tracePoints(state.route, state.deptHour);
+  const box = document.getElementById('alertsBox');
+  box.innerHTML = '';
+
+  const danger = []; // score >= 3.5
+  const warn = [];   // 2.5 <= score < 3.5
+  let maxScore = 0;
+  points.forEach(p => {
+    const s = getCongestion(state.date, p.hourInDay, p.node.profile, dateMult);
+    const hourStr = String(Math.floor(p.hourInDay)).padStart(2,'0');
+    if (s >= 3.5) danger.push({ p, s, hourStr });
+    else if (s >= 2.5) warn.push({ p, s, hourStr });
+    if (s > maxScore) maxScore = s;
+  });
+
+  if (danger.length > 0) {
+    danger.forEach(({ p, s, hourStr }) => {
+      const a = document.createElement('div');
+      a.className = 'alert danger';
+      a.innerHTML = `<span class="ic">⚠</span><span><strong>${hourStr}時頃 ${p.node.name}</strong> で激渋滞の可能性 (スコア ${s.toFixed(1)})</span>`;
+      box.appendChild(a);
+    });
+  }
+  if (warn.length > 0) {
+    warn.forEach(({ p, s, hourStr }) => {
+      const a = document.createElement('div');
+      a.className = 'alert warn';
+      a.innerHTML = `<span class="ic">●</span><span>${hourStr}時頃 ${p.node.name} で渋滞 (スコア ${s.toFixed(1)})</span>`;
+      box.appendChild(a);
+    });
+  }
+  if (danger.length === 0 && warn.length === 0) {
+    const a = document.createElement('div');
+    a.className = 'alert ok';
+    a.innerHTML = `<span class="ic">✓</span><span>このルート・出発時刻なら大きな渋滞は予想されません</span>`;
+    box.appendChild(a);
+  }
+}
+
+/* ====================================================================
+ * INIT
+ * ================================================================== */
 (function init() {
   updateStepDots();
-  initHighwayList();
-  initDateScreen();
+  initEntryScreen();
 })();
 </script>
 </body>

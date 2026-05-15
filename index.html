@@ -84,6 +84,16 @@
   .summary-banner { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .summary-banner .tag { background: rgba(56,189,248,.15); border: 1px solid rgba(56,189,248,.3); border-radius: 8px; padding: 4px 10px; font-size: 13px; color: var(--accent); }
 
+  .result-date-row { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .result-date-row .dt-input { font-size: 15px; padding: 10px 12px; }
+  .cond-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cond-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid transparent; line-height: 1.4; }
+  .cond-chip.normal  { background: rgba(148,163,184,.15); color: var(--muted);  border-color: rgba(148,163,184,.25); }
+  .cond-chip.weekend { background: rgba(56,189,248,.15); color: var(--accent); border-color: rgba(56,189,248,.3); }
+  .cond-chip.holiday { background: rgba(239,68,68,.15);  color: var(--red);    border-color: rgba(239,68,68,.3); }
+  .cond-chip.fives   { background: rgba(250,204,21,.15); color: var(--yellow); border-color: rgba(250,204,21,.3); }
+  .cond-chip.warn    { background: rgba(249,115,22,.18); color: var(--orange); border-color: rgba(249,115,22,.4); }
+
   .ic-pass-list { display: flex; flex-direction: column; gap: 0; }
   .ic-pass-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); position: relative; }
   .ic-pass-item:last-child { border-bottom: none; }
@@ -189,6 +199,15 @@
     <button class="btn-back" onclick="goToScreen(4)">‹ 条件を変更する</button>
 
     <div class="summary-banner" id="summaryBanner"></div>
+
+    <div class="card">
+      <div class="card-title">日付を変更してリアルタイム再計算</div>
+      <div class="result-date-row">
+        <input type="date" id="resultDate" class="dt-input">
+        <div class="cond-chips" id="resultCondChips"></div>
+      </div>
+    </div>
+
     <div id="overallAlert"></div>
 
     <div class="card">
@@ -285,41 +304,163 @@ const HIGHWAYS = [
 ];
 
 const HOLIDAYS = new Set([
+  // 2025
+  '2025-01-01','2025-01-13','2025-02-11','2025-02-23','2025-02-24',
+  '2025-03-20','2025-04-29','2025-05-03','2025-05-04','2025-05-05','2025-05-06',
+  '2025-07-21','2025-08-11','2025-09-15','2025-09-23','2025-10-13',
+  '2025-11-03','2025-11-23','2025-11-24',
+  // 2026
   '2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20',
   '2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06',
   '2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23',
-  '2026-10-12','2026-11-03','2026-11-23','2026-12-23'
+  '2026-10-12','2026-11-03','2026-11-23',
+  // 2027
+  '2027-01-01','2027-01-11','2027-02-11','2027-02-23','2027-03-21','2027-03-22',
+  '2027-04-29','2027-05-03','2027-05-04','2027-05-05',
+  '2027-07-19','2027-08-11','2027-09-20','2027-09-23','2027-10-11',
+  '2027-11-03','2027-11-23'
 ]);
 
 const DOW_NAMES = ['日','月','火','水','木','金','土'];
 
+// インバウンド型路線（東京方面の終点が混む路線）
+const INBOUND_HEAVY_ROUTES = new Set(['joban','kanetsu','tomei','chuo']);
+
+function fmtDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+
+function getCondition(date) {
+  const dow = date.getDay();
+  const dom = date.getDate();
+  const month = date.getMonth() + 1;
+  const isHoliday = HOLIDAYS.has(fmtDate(date));
+
+  let dayType;
+  if (isHoliday) dayType = 'holiday';
+  else if (dow === 0) dayType = 'sunday';
+  else if (dow === 6) dayType = 'saturday';
+  else dayType = 'weekday';
+
+  // 特殊期間（上り/下り混雑日を判定）
+  let specialPeriod = null;
+  let inboundPeak = false;  // 上り(東京方向) ピーク日
+  let outboundPeak = false; // 下り(郊外方向) ピーク日
+
+  // GW: 4/29 〜 5/5
+  if ((month === 4 && dom >= 29) || (month === 5 && dom <= 5)) {
+    specialPeriod = 'gw';
+    // 上り(帰り)ピーク: 4/30, 5/3, 5/5
+    if ((month === 4 && dom === 30) || (month === 5 && (dom === 3 || dom === 5))) {
+      inboundPeak = true;
+    } else {
+      // 下り(行き)ピーク: 4/29, 5/1, 5/2, 5/4
+      outboundPeak = true;
+    }
+  }
+  // お盆: 8/10 〜 8/16
+  else if (month === 8 && dom >= 10 && dom <= 16) {
+    specialPeriod = 'obon';
+    // 上り(帰省からの帰り)ピーク: 8/14〜8/16
+    if (dom >= 14) inboundPeak = true;
+    else outboundPeak = true;
+  }
+  // 年末年始: 12/28 〜 1/4
+  else if ((month === 12 && dom >= 28) || (month === 1 && dom <= 4)) {
+    specialPeriod = 'newyear';
+    // 上り(Uターン)ピーク: 1/2〜1/4
+    if (month === 1 && dom >= 2) inboundPeak = true;
+    else outboundPeak = true;
+  }
+
+  // 5のつく日(平日のみ +15%)
+  const fivesDay = dayType === 'weekday' && [5,10,15,20,25,30].includes(dom);
+
+  return { dayType, specialPeriod, inboundPeak, outboundPeak, fivesDay };
+}
+
+function getConditionLabels(cond) {
+  const labels = [];
+
+  // 期間ラベル(優先表示)
+  if (cond.specialPeriod === 'gw') {
+    labels.push({ text: cond.inboundPeak ? 'GW（上り混雑）' : 'GW（下り混雑）', kind: 'warn' });
+  } else if (cond.specialPeriod === 'obon') {
+    labels.push({ text: cond.inboundPeak ? 'お盆（上り混雑）' : 'お盆（下り混雑）', kind: 'warn' });
+  } else if (cond.specialPeriod === 'newyear') {
+    labels.push({ text: cond.inboundPeak ? '年末年始（上り）' : '年末年始（下り）', kind: 'warn' });
+  }
+
+  // 曜日/祝日ラベル
+  if (cond.dayType === 'holiday')        labels.push({ text: '祝日', kind: 'holiday' });
+  else if (cond.dayType === 'sunday')    labels.push({ text: '日曜日', kind: 'weekend' });
+  else if (cond.dayType === 'saturday')  labels.push({ text: '土曜日', kind: 'weekend' });
+  else                                   labels.push({ text: '平日', kind: 'normal' });
+
+  if (cond.fivesDay) labels.push({ text: '5のつく日', kind: 'fives' });
+
+  return labels;
+}
+
 let state = { highway: null, entryIdx: null, exitIdx: null, date: null, hour: 8, currentScreen: 1 };
 let chartInstance = null;
 
-function getCongestionScore(date, hour, multiplier = 1.0) {
-  let s = 0;
-  const dow = date.getDay(), dom = date.getDate(), month = date.getMonth() + 1;
-  const lastDay = new Date(date.getFullYear(), month, 0).getDate();
-  const key = d => d.toISOString().slice(0, 10);
-  const isHol = d => HOLIDAYS.has(key(d));
-  const addD = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+// 曜日タイプ別の時間帯ベースプロファイル (24時間分)
+const HOUR_PROFILES = {
+  weekday:  [0.3,0.2,0.2,0.2,0.3,0.8,1.6,3.0,3.6,3.2,2.0,1.8,1.8,2.0,2.2,2.4,2.8,3.6,3.8,3.4,2.4,1.6,1.0,0.6],
+  saturday: [0.5,0.3,0.3,0.3,0.4,0.6,1.0,1.3,1.6,2.0,2.3,2.5,2.6,2.6,2.6,2.5,2.7,2.8,2.6,2.2,1.7,1.3,0.9,0.6],
+  sunday:   [0.4,0.3,0.2,0.2,0.3,0.5,0.8,1.1,1.4,1.7,1.9,2.0,2.0,1.9,2.0,2.4,2.9,3.2,3.1,2.7,2.0,1.4,0.9,0.5]
+};
 
-  if ([5,10,15,20,25].includes(dom) || dom === lastDay) s += 1.5;
-  if (dow === 5) s += 1.2;
-  if (dow === 1) s += 0.6;
-  if (dow === 0 || dow === 6) s += 0.4;
-  if (isHol(date)) s += 0.8;
-  if (isHol(addD(date, 1))) s += 1.5;
-  if ((month === 4 && dom >= 29) || (month === 5 && dom <= 6)) s += 2.5;
-  if (month === 8 && dom >= 10 && dom <= 18) s += 2.0;
-  if ((month === 12 && dom >= 28) || (month === 1 && dom <= 3)) s += 2.0;
-  if (hour >= 0 && hour <= 4) s -= 2.5;
-  else if (hour >= 7 && hour <= 9) s += 2.2;
-  else if (hour >= 17 && hour <= 20) s += 2.5;
-  else if (hour >= 13 && hour <= 16) s += 0.5;
-  else if (hour >= 21) s -= 0.5;
-  if (dow === 1 && hour >= 7 && hour <= 10) s += 0.8;
-  if (dow === 5 && hour >= 17 && hour <= 20) s += 0.8;
+function getCongestionScore(date, hour, multiplier = 1.0, highwayId = null) {
+  const cond = getCondition(date);
+  const profileKey = cond.dayType === 'holiday' ? 'sunday' : cond.dayType;
+  let s = HOUR_PROFILES[profileKey][hour];
+
+  // 特殊期間: 上り/下り方向で混雑パターンを切り替える
+  if (cond.specialPeriod === 'gw') {
+    if (cond.inboundPeak) {
+      // 上り帰宅ピーク 14-20: 常磐道・関越道で特に強い
+      const heavy = (highwayId === 'joban' || highwayId === 'kanetsu') ? 2.8 : 1.8;
+      if (hour >= 14 && hour <= 20) s += heavy;
+      else if (hour >= 10 && hour <= 13) s += 0.6;
+      else s += 0.2;
+    } else {
+      // 下り行きピーク 10-14: 郊外路線全般
+      if (hour >= 10 && hour <= 14) s += 2.0;
+      else if (hour >= 6 && hour <= 9) s += 1.2;
+      else s += 0.2;
+    }
+  } else if (cond.specialPeriod === 'obon') {
+    if (cond.inboundPeak) {
+      const heavy = (highwayId === 'joban' || highwayId === 'kanetsu') ? 2.3 : 1.5;
+      if (hour >= 14 && hour <= 20) s += heavy;
+      else if (hour >= 10 && hour <= 13) s += 0.5;
+      else s += 0.2;
+    } else {
+      if (hour >= 10 && hour <= 14) s += 1.8;
+      else if (hour >= 6 && hour <= 9) s += 1.0;
+      else s += 0.2;
+    }
+  } else if (cond.specialPeriod === 'newyear') {
+    if (cond.inboundPeak) {
+      if (hour >= 13 && hour <= 19) s += 1.6;
+      else s += 0.2;
+    } else {
+      if (hour >= 9 && hour <= 14) s += 1.4;
+      else s += 0.2;
+    }
+  }
+
+  // 5のつく日 (平日のみ +15%)
+  if (cond.fivesDay) s *= 1.15;
+
+  // 祝日前日(平日)の夕方は帰省・行楽前の混雑
+  if (cond.dayType === 'weekday' && !cond.specialPeriod) {
+    const next = new Date(date); next.setDate(next.getDate() + 1);
+    if (HOLIDAYS.has(fmtDate(next)) && hour >= 16 && hour <= 21) s += 0.8;
+  }
 
   return Math.max(0, Math.min(5, s * multiplier));
 }
@@ -427,23 +568,65 @@ function getSegmentMultiplier(highway, fromIcName, toIcName) {
   return highway.segmentMultipliers[fromIcName + '→' + toIcName] || 1.0;
 }
 
+function initResultDatePicker() {
+  const input = document.getElementById('resultDate');
+  if (input.dataset.bound) return;
+  const today = new Date();
+  input.min = fmtDate(today);
+  const maxDate = new Date(today); maxDate.setDate(today.getDate() + 90);
+  input.max = fmtDate(maxDate);
+  input.addEventListener('change', e => {
+    const v = e.target.value;
+    if (!v) return;
+    state.date = new Date(v + 'T00:00:00');
+    const deptInput = document.getElementById('deptDate');
+    if (deptInput) deptInput.value = v;
+    renderResult();
+  });
+  input.dataset.bound = '1';
+}
+
+function renderCondChips(containerId, cond) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  getConditionLabels(cond).forEach(l => {
+    const span = document.createElement('span');
+    span.className = 'cond-chip ' + l.kind;
+    span.textContent = l.text;
+    el.appendChild(span);
+  });
+}
+
 function showResult() {
   const hw = state.highway;
   const dateStr = document.getElementById('deptDate').value;
   state.date = new Date(dateStr + 'T00:00:00');
   state.hour = parseInt(document.getElementById('hourSlider').value);
 
+  initResultDatePicker();
+  document.getElementById('resultDate').value = fmtDate(state.date);
+
+  renderResult();
+  goToScreen(5);
+}
+
+function renderResult() {
+  const hw = state.highway;
   const entryName = hw.ics[state.entryIdx].name;
   const exitName  = hw.ics[state.exitIdx].name;
   const dateLabel = state.date.toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
+  const cond = getCondition(state.date);
 
   document.getElementById('summaryBanner').innerHTML =
     `<span class="tag">${hw.name}</span><span class="tag">${entryName} → ${exitName}</span><span class="tag">${dateLabel} ${String(state.hour).padStart(2,'0')}:00 出発</span>`;
 
+  renderCondChips('resultCondChips', cond);
+
   const passings = calcPassingTimes(hw, state.entryIdx, state.exitIdx, state.hour);
   const scores = passings.map((p, idx) => {
     const mult = idx > 0 ? getSegmentMultiplier(hw, passings[idx-1].ic, p.ic) : 1.0;
-    return getCongestionScore(state.date, p.hour, mult);
+    return getCongestionScore(state.date, p.hour, mult, hw.id);
   });
 
   const maxScore = Math.max(...scores);
@@ -478,7 +661,6 @@ function showResult() {
   renderChart(passings, scores);
   renderWeekCalendar();
   renderConditions();
-  goToScreen(5);
 }
 
 function renderChart(passings, icScores) {
@@ -488,7 +670,7 @@ function renderChart(passings, icScores) {
     ? icScores.slice(1).reduce((a, _, i) => a + getSegmentMultiplier(state.highway, passings[i].ic, passings[i+1].ic), 0) / (icScores.length - 1)
     : 1.0;
 
-  const chartData = hours.map(h => getCongestionScore(date, h, avgMult));
+  const chartData = hours.map(h => getCongestionScore(date, h, avgMult, state.highway.id));
   const barColors = chartData.map(s =>
     s < 1.0 ? 'rgba(34,197,94,0.75)' :
     s < 2.0 ? 'rgba(250,204,21,0.75)' :
@@ -549,20 +731,27 @@ function renderWeekCalendar() {
   const container = document.getElementById('weekCalendar');
   container.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
+  const selectedStr = state.date ? fmtDate(state.date) : null;
+  const hwId = state.highway ? state.highway.id : null;
   for (let i = 0; i < 7; i++) {
     const d = new Date(today); d.setDate(today.getDate() + i);
-    const sc = getCongestionScore(d, state.hour, 1.0);
+    const sc = getCongestionScore(d, state.hour, 1.0, hwId);
     const info = scoreToInfo(sc);
+    const isSelected = fmtDate(d) === selectedStr;
     const div = document.createElement('div');
-    div.className = 'week-day' + (i === 0 ? ' today' : '');
+    div.className = 'week-day' + (isSelected ? ' today' : '');
     div.innerHTML =
       `<div class="wd-name">${DOW_NAMES[d.getDay()]}</div>
-       <div class="wd-date" style="color:${i===0?'var(--accent)':''}">${d.getDate()}</div>
+       <div class="wd-date" style="color:${isSelected?'var(--accent)':''}">${d.getDate()}</div>
        <div class="wd-emoji">${info.emoji}</div>`;
     div.onclick = () => {
       state.date = new Date(d);
-      document.getElementById('deptDate').value = d.toISOString().slice(0,10);
-      showResult();
+      const v = fmtDate(d);
+      const dept = document.getElementById('deptDate');
+      const result = document.getElementById('resultDate');
+      if (dept) dept.value = v;
+      if (result) result.value = v;
+      renderResult();
     };
     container.appendChild(div);
   }

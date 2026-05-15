@@ -422,7 +422,12 @@ function reachableFrom(fromId) {
 /* ====================================================================
  * CONGESTION: profile + 日付要因
  * ================================================================== */
-function dateKey(d) { return d.toISOString().slice(0,10); }
+function dateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
 
 function getDateFactors(date) {
   const dow = date.getDay();
@@ -606,12 +611,11 @@ function initDateScreen() {
 
   const dateInput = document.getElementById('deptDate');
   const today = new Date(); today.setHours(0,0,0,0);
-  const fmt = d => d.toISOString().slice(0,10);
-  dateInput.min = fmt(today);
+  dateInput.min = dateKey(today);
   const max = new Date(today); max.setDate(today.getDate() + 90);
-  dateInput.max = fmt(max);
+  dateInput.max = dateKey(max);
   if (!state.date) state.date = today;
-  dateInput.value = fmt(state.date);
+  dateInput.value = dateKey(state.date);
   dateInput.onchange = e => {
     state.date = new Date(e.target.value + 'T00:00:00');
     renderQuickDates();
@@ -630,10 +634,10 @@ function renderQuickDates() {
   const container = document.getElementById('quickDates');
   container.innerHTML = '';
   const today = new Date(); today.setHours(0,0,0,0);
-  const selected = state.date ? state.date.toISOString().slice(0,10) : '';
+  const selected = state.date ? dateKey(state.date) : '';
   for (let i = 0; i < 8; i++) {
     const d = new Date(today); d.setDate(today.getDate() + i);
-    const key = d.toISOString().slice(0,10);
+    const key = dateKey(d);
     const dow = d.getDay();
     const factors = getDateFactors(d).factors;
     const tag = factors.find(f => f.warn || f.holiday);

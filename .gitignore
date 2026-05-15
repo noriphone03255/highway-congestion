@@ -1,0 +1,21 @@
+node_modules/
+www/
+.DS_Store
+
+# Capacitor iOS - generated, but we track ios/ as a whole. Pods/ is build output
+ios/App/Pods/
+ios/App/build/
+ios/App/Podfile.lock
+ios/DerivedData/
+
+# Capacitor Android
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+
+# Logs
+*.log
+npm-debug.log*
